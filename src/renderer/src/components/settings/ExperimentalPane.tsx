@@ -10,6 +10,7 @@ import { NumberField, SettingsSwitch } from './SettingsFormControls'
 import { translate } from '@/i18n/i18n'
 import { NativeChatExperimentalSetting } from './NativeChatExperimentalSetting'
 import { AgentDashboardExperimentalSetting } from './AgentDashboardExperimentalSetting'
+import { ManagerAgentExperimentalSetting } from './ManagerAgentExperimentalSetting'
 import { EphemeralVmsExperimentalSetting } from './EphemeralVmsExperimentalSetting'
 import { WslHostsExperimentalSetting } from './WslHostsExperimentalSetting'
 import { wslHostsAvailable } from '../sidebar/use-wsl-hosts-enabled'
@@ -44,6 +45,9 @@ export function ExperimentalPane({
   const showAgentDashboard = matchesSettingsSearch(searchQuery, [
     getExperimentalSearchEntry().agentDashboard
   ])
+  const showManagerAgent = matchesSettingsSearch(searchQuery, [
+    getExperimentalSearchEntry().managerAgent
+  ])
   const showTerminalAttention = matchesSettingsSearch(searchQuery, [
     getExperimentalSearchEntry().terminalAttention
   ])
@@ -65,6 +69,10 @@ export function ExperimentalPane({
     <div className="space-y-4">
       {showAgentDashboard ? (
         <AgentDashboardExperimentalSetting settings={settings} updateSettings={updateSettings} />
+      ) : null}
+
+      {showManagerAgent ? (
+        <ManagerAgentExperimentalSetting settings={settings} updateSettings={updateSettings} />
       ) : null}
 
       {showPet ? (

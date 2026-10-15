@@ -4,6 +4,7 @@ import { translate } from '@/i18n/i18n'
 import { translateSearchKeyword } from './settings-search-keywords'
 import { getNewWorktreeCardStyleSearchEntry } from './new-worktree-card-style-search-entry'
 import { getNativeChatExperimentalSearchEntry } from './native-chat-experimental-search-entry'
+import { getManagerAgentExperimentalSearchEntry } from './manager-agent-experimental-search-entry'
 import { getEphemeralVmsSearchEntry } from './ephemeral-vms-search'
 import { getWslHostsExperimentalSearchEntry } from './wsl-hosts-experimental-search'
 
@@ -92,6 +93,7 @@ export const getExperimentalPaneSearchEntries = createLocalizedCatalog(
         )
       ]
     },
+    getManagerAgentExperimentalSearchEntry(),
     {
       title: translate(
         'auto.components.settings.experimental.search.9e4ddf776d',
@@ -211,6 +213,9 @@ export function getExperimentalSearchEntry() {
         'auto.components.settings.experimental.search.agentDashboard.title',
         'Agent Dashboard'
       )
+    ),
+    managerAgent: findEntry(
+      translate('auto.components.settings.experimental.search.managerAgent.title', 'Manager')
     ),
     terminalAttention: findEntry(
       translate('auto.components.settings.experimental.search.9e4ddf776d', 'Terminal attention')

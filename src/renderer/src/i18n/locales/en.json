@@ -7590,6 +7590,12 @@
             "modeAriaLabel": "Agent Dashboard open mode",
             "modeInWindow": "In-window",
             "modePopout": "Pop-out"
+          },
+          "managerAgent": {
+            "title": "Manager",
+            "description": "One persistent chat that finds work across projects and delegates it to other agents.",
+            "copy": "Adds a Manager entry to the sidebar and command palette. The Manager is one persistent chat in the floating workspace that looks across your projects, starts other agents through orchestration, and reports their results. Works best with Chat UI on and the orchestration skill installed.",
+            "toggleLabel": "Toggle Manager"
           }
         },
         "FloatingWorkspacePane": {
@@ -10064,6 +10070,16 @@
               "board": "board",
               "inWindow": "in-window",
               "worktrees": "worktrees"
+            },
+            "managerAgent": {
+              "title": "Manager",
+              "description": "One persistent chat that finds work across projects and delegates it to other agents.",
+              "manager": "manager",
+              "chiefOfStaff": "chief of staff",
+              "orchestration": "orchestration",
+              "delegate": "delegate",
+              "agent": "agent",
+              "chat": "chat"
             }
           }
         },
@@ -16468,12 +16484,18 @@
                 "chatPaneRight": "chat pane right",
                 "splitChatDown": "split chat down",
                 "moveChatDown": "move chat down",
-                "chatPaneBelow": "chat pane below"
+                "chatPaneBelow": "chat pane below",
+                "openManager": "open manager",
+                "manager": "manager",
+                "chiefOfStaff": "chief of staff",
+                "delegate": "delegate work"
               },
               "splitChatRight": "Split Chat Right",
               "splitChatRightDescription": "Open the active chat in a split pane to the right.",
               "splitChatDown": "Split Chat Down",
-              "splitChatDownDescription": "Open the active chat in a split pane below."
+              "splitChatDownDescription": "Open the active chat in a split pane below.",
+              "openManager": "Open Manager",
+              "openManagerDescription": "Open the Manager chat that delegates work to other agents."
             }
           },
           "palette": {
@@ -18048,6 +18070,12 @@
         "a62f9db53d": "Cancel",
         "c77189bc0c": "Update filter",
         "19af906d12": "Save filter"
+      },
+      "managerAgent": {
+        "sidebarLabel": "Manager",
+        "launchFailed": "Could not start the Manager.",
+        "noAgent": "No installed agent is available to run the Manager.",
+        "tabTitle": "Manager"
       }
     },
     "i18n": {
