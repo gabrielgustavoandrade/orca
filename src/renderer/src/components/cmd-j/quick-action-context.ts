@@ -17,6 +17,7 @@ export type CmdJUnavailableReason =
   | 'no-active-group'
   | 'no-active-chat'
   | 'client-action-unsupported'
+  | 'feature-disabled'
 
 export type CmdJQuickActionAvailability =
   | { available: true }
@@ -44,6 +45,7 @@ export type CmdJQuickActionContext = {
   openAddQuickCommand: () => void
   canSplitActiveChat?: boolean
   splitActiveChat?: (direction: NativeChatSplitDirection) => boolean
+  managerAgentEnabled?: boolean
 }
 
 export function resolveCmdJActiveGroupId(
@@ -197,7 +199,8 @@ export function buildCmdJQuickActionContext(args: {
     openAddQuickCommand: args.openAddQuickCommand,
     canSplitActiveChat: canRunNativeChatSplitTarget(args.state, activeChatTarget),
     splitActiveChat: (direction) =>
-      runActiveNativeChatSplit(activeWorktreeId, activeGroupId, direction)
+      runActiveNativeChatSplit(activeWorktreeId, activeGroupId, direction),
+    managerAgentEnabled: args.state.settings?.experimentalManagerAgent === true
   }
 }
 
@@ -218,5 +221,7 @@ export function getUnavailableQuickActionMessage(
       return `Can't ${actionTitle.toLowerCase()} — no movable chat is active.`
     case 'client-action-unsupported':
       return `Can't ${actionTitle.toLowerCase()} — this client and runtime do not support it.`
+    case 'feature-disabled':
+      return `Can't ${actionTitle.toLowerCase()} — its experimental setting is off.`
   }
 }

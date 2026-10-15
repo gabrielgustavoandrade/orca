@@ -133,6 +133,7 @@ export function useWorktreeJumpPaletteQuickActions({
     void unifiedTabsByWorktree
     void isLoading
     void settings?.activeRuntimeEnvironmentId
+    void settings?.experimentalManagerAgent
     void runtimeStatusByEnvironmentId
     const context = buildQuickActionContext()
     return actionResults.filter((action) => action.isAvailable(context).available)
@@ -149,6 +150,7 @@ export function useWorktreeJumpPaletteQuickActions({
     unifiedTabsByWorktree,
     isLoading,
     settings?.activeRuntimeEnvironmentId,
+    settings?.experimentalManagerAgent,
     runtimeStatusByEnvironmentId
   ])
   const middleItems = useMemo<(SettingsPaletteItem | QuickActionPaletteItem)[]>(

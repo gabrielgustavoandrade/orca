@@ -26,7 +26,8 @@ const mocks = vi.hoisted(() => ({
   agentBucketCounts: { attention: 0, working: 0, done: 0, idle: 0 },
   getAgentBucketCounts: vi.fn(),
   dismissMobileOnboardingBadge: vi.fn(),
-  setSetupGuideSidebarDismissed: vi.fn()
+  setSetupGuideSidebarDismissed: vi.fn(),
+  openManagerAgent: vi.fn()
 }))
 
 vi.mock('@/store', () => ({
@@ -49,6 +50,10 @@ vi.mock('@/components/dashboard/useAgentBucketCounts', () => ({
     mocks.getAgentBucketCounts()
     return mocks.agentBucketCounts
   }
+}))
+
+vi.mock('../manager-agent/open-manager-agent', () => ({
+  openManagerAgent: mocks.openManagerAgent
 }))
 
 vi.mock('@/hooks/useShortcutLabel', () => ({
@@ -88,6 +93,7 @@ vi.mock('@/components/ui/context-menu', () => ({
 }))
 
 import SidebarNav, {
+  shouldShowManagerAgentButton,
   shouldShowAutomationsButton,
   shouldShowArtifactsButton,
   shouldShowMobileButton
@@ -234,6 +240,32 @@ describe('SidebarNav', () => {
 
     await waitFor(() => expect(queryButtonByText(container, 'Agent Dashboard')).not.toBeNull())
     expect(mocks.getAgentBucketCounts).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows the Manager entry only when its experiment is enabled', () => {
+    expect(shouldShowManagerAgentButton(null)).toBe(false)
+    expect(shouldShowManagerAgentButton({})).toBe(false)
+    expect(shouldShowManagerAgentButton(getDefaultSettings('/tmp'))).toBe(false)
+    expect(shouldShowManagerAgentButton({ experimentalManagerAgent: true })).toBe(true)
+  })
+
+  it('keeps the Manager row unmounted while its experiment is off', async () => {
+    const container = await renderSidebarNav()
+
+    expect(queryButtonByText(container, 'Manager')).toBeNull()
+  })
+
+  it('opens the Manager from its sidebar row when the experiment is on', async () => {
+    setSidebarState({
+      settings: { ...getDefaultSettings('/tmp'), experimentalManagerAgent: true }
+    })
+    const container = await renderSidebarNav()
+
+    await waitFor(() => expect(queryButtonByText(container, 'Manager')).not.toBeNull())
+    act(() => {
+      queryButtonByText(container, 'Manager')?.click()
+    })
+    expect(mocks.openManagerAgent).toHaveBeenCalledWith('sidebar')
   })
 
   it('uses a question glyph only for the Needs You count', async () => {

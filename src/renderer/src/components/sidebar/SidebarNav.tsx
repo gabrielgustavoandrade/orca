@@ -46,7 +46,16 @@ export function shouldShowAgentDashboardButton(
   return settings?.experimentalAgentDashboardPopout === true
 }
 
+export function shouldShowManagerAgentButton(
+  settings: Partial<Pick<GlobalSettings, 'experimentalManagerAgent'>> | null | undefined
+): boolean {
+  return settings?.experimentalManagerAgent === true
+}
+
 const AgentDashboardSidebarEntry = lazyWithRetry(() => import('./AgentDashboardSidebarEntry'))
+const ManagerAgentSidebarEntry = lazyWithRetry(
+  () => import('../manager-agent/ManagerAgentSidebarEntry')
+)
 
 const SidebarNav = React.memo(function SidebarNav() {
   // Why: this memo boundary needs its own language subscription, while
@@ -61,6 +70,7 @@ const SidebarNav = React.memo(function SidebarNav() {
   const updateSettings = useAppStore((s) => s.updateSettings)
   const activeView = useAppStore((s) => s.activeView)
   const showAgentDashboardButton = useAppStore((s) => shouldShowAgentDashboardButton(s.settings))
+  const showManagerAgentButton = useAppStore((s) => shouldShowManagerAgentButton(s.settings))
   const showAutomationsButton = useAppStore((s) => shouldShowAutomationsButton(s.settings))
   const showMobileButton = useAppStore((s) => shouldShowMobileButton(s.settings))
   const showArtifactsButton = useAppStore((s) => shouldShowArtifactsButton(s.settings))
@@ -209,6 +219,11 @@ const SidebarNav = React.memo(function SidebarNav() {
       {showAgentDashboardButton ? (
         <React.Suspense fallback={null}>
           <AgentDashboardSidebarEntry />
+        </React.Suspense>
+      ) : null}
+      {showManagerAgentButton ? (
+        <React.Suspense fallback={null}>
+          <ManagerAgentSidebarEntry />
         </React.Suspense>
       ) : null}
       {showMobileButton ? (
