@@ -14,6 +14,7 @@ import { createUiSurfaceActions } from './ui/ui-slice-surface-actions'
 import { createUiPersistenceActions } from './ui/ui-slice-persistence-actions'
 import { createUiHydrationActions } from './ui/ui-slice-hydration-actions'
 import { createUiUpdateActions } from './ui/ui-slice-update-actions'
+import { createUiManagerAgentActions } from './ui/ui-slice-manager-agent-actions'
 
 export type {
   AgentSendPopoverTargetMode,
@@ -26,6 +27,7 @@ export type {
 } from './ui/ui-slice-contract'
 
 export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get) =>
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: each creator returns a Partial<UISlice>; together they cover every UISlice key.
   ({
     ...createUiAgentActions(set, get),
     ...createUiTaskActions(set, get),
@@ -39,5 +41,6 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
     ...createUiSurfaceActions(set, get),
     ...createUiPersistenceActions(set, get),
     ...createUiHydrationActions(set, get),
-    ...createUiUpdateActions(set, get)
+    ...createUiUpdateActions(set, get),
+    ...createUiManagerAgentActions(set)
   }) as UISlice

@@ -1,4 +1,5 @@
 import type { PersistedUIState } from '../../../../shared/persisted-ui-state-types'
+import type { ManagerAgentRecords } from '../../../../shared/manager-agent-records'
 
 /**
  * Mirror-shaped snapshot of the fields the debounced persisted-UI writer owns.
@@ -35,6 +36,7 @@ export type PersistedUIWriteBaseline = {
   acknowledgedAgentsByPaneKey: Record<string, number>
   activityClearedAtByPaneKey: Record<string, number>
   manuallyUnreadTurnsByPaneKey: Record<string, number>
+  managerAgents: ManagerAgentRecords
 }
 
 // Why `satisfies Record<...>` rather than a keyof[] annotation: a plain `satisfies
@@ -67,7 +69,8 @@ const PERSISTED_UI_WRITE_BASELINE_FIELD_SET = {
   filterRepoIds: true,
   acknowledgedAgentsByPaneKey: true,
   activityClearedAtByPaneKey: true,
-  manuallyUnreadTurnsByPaneKey: true
+  manuallyUnreadTurnsByPaneKey: true,
+  managerAgents: true
 } satisfies Record<keyof PersistedUIWriteBaseline, true>
 
 export const PERSISTED_UI_WRITE_BASELINE_FIELDS = Object.keys(
@@ -116,7 +119,8 @@ function writeFieldEqual(field: keyof PersistedUIWriteBaseline, a: unknown, b: u
     field === 'showDotfilesByWorktree' ||
     field === 'acknowledgedAgentsByPaneKey' ||
     field === 'activityClearedAtByPaneKey' ||
-    field === 'manuallyUnreadTurnsByPaneKey'
+    field === 'manuallyUnreadTurnsByPaneKey' ||
+    field === 'managerAgents'
   ) {
     return shallowRecordEqual(
       a as Record<string, unknown> | undefined,

@@ -35,6 +35,7 @@ function makeBaseline(overrides: Partial<PersistedUIWriteBaseline> = {}): Persis
     acknowledgedAgentsByPaneKey: {},
     activityClearedAtByPaneKey: {},
     manuallyUnreadTurnsByPaneKey: {},
+    managerAgents: {},
     ...overrides
   }
 }
@@ -131,6 +132,28 @@ describe('manuallyUnreadTurnsByPaneKey write round-trip', () => {
     expect(persistedUIWriteFieldsToWireUpdate({ manuallyUnreadTurnsByPaneKey: { p1: 7 } })).toEqual(
       { manuallyUnreadTurnsByPaneKey: { p1: 7 } }
     )
+  })
+})
+
+describe('managerAgents write round-trip', () => {
+  it('writes a new or replaced Manager record, and nothing when records are unchanged', () => {
+    const global = {
+      scopeKey: 'global' as const,
+      tabId: 'structured-agent-session-s1',
+      sessionId: 's1',
+      agent: 'claude' as const,
+      hostWorktreeId: 'global-floating-terminal',
+      briefVersion: 2,
+      createdAt: 1
+    }
+    const baseline = makeBaseline({ managerAgents: { global } })
+    expect(
+      diffPersistedUIWriteFields(makeBaseline({ managerAgents: { global } }), baseline)
+    ).toEqual({})
+    const replaced = { ...global, tabId: 'structured-agent-session-s2', sessionId: 's2' }
+    expect(
+      diffPersistedUIWriteFields(makeBaseline({ managerAgents: { global: replaced } }), baseline)
+    ).toEqual({ managerAgents: { global: replaced } })
   })
 })
 

@@ -9,6 +9,9 @@ import { isFeatureInteractionId } from '../feature-interactions'
 import type { FeatureInteractionId } from '../feature-interactions'
 import { ACTIVITY_GROUP_BY_VALUES, THREAD_READ_FILTER_VALUES } from '../agents-view-thread-filters'
 import { isReleaseChannel } from '../release-channel'
+import { isManagerScopeKey, type ManagerScopeKey } from '../manager-agent-records'
+import { isTuiAgent } from '../tui-agent-config'
+import type { TuiAgent } from '../tui-agent'
 import type { ReleaseChannel } from '../release-channel'
 import { ClientUiWorkspaceFilterFields } from './client-ui-workspace-filter-fields-params'
 import { TaskResumeState } from './task-resume-state-params'
@@ -16,6 +19,17 @@ import { WorkspaceCleanup } from './workspace-cleanup-ui-params'
 import { omitUndefinedValues, tolerateUnknownValues } from './ui-update-value-tolerance-params'
 
 export const NullableString = z.string().nullable()
+
+const ManagerAgentRecordSchema = z.object({
+  scopeKey: z.custom<ManagerScopeKey>(isManagerScopeKey),
+  tabId: z.string(),
+  sessionId: z.string().optional(),
+  agent: z.custom<TuiAgent>(isTuiAgent).nullable(),
+  hostWorktreeId: z.string(),
+  parentScopeKey: z.custom<ManagerScopeKey>(isManagerScopeKey).optional(),
+  briefVersion: z.number().finite(),
+  createdAt: z.number().finite()
+})
 
 export const StringArray = z.array(z.string())
 
@@ -235,6 +249,8 @@ export const UiUpdateFields = z
     // Why: one-shot dismissals the renderer writes through ui.set; each was a
     // whole-payload rejection for paired clients while unlisted.
     setupGuideSidebarDismissed: z.boolean().optional(),
+    managerAgentTabId: NullableString.optional(),
+    managerAgents: z.record(z.string(), ManagerAgentRecordSchema).optional(),
     setupGuideBrowserMilestoneMigrated: z.boolean().optional(),
     setupGuideBrowserMilestoneLegacyComplete: z.boolean().optional(),
     browserImportHintHidden: z.boolean().optional(),

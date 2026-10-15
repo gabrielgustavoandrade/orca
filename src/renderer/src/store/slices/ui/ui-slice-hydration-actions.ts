@@ -17,7 +17,8 @@ import { normalizeFeatureTipIds } from '../../../../../shared/feature-tips'
 import {
   DEFAULT_HIDE_SLEEPING_WORKSPACES,
   normalizeWorktreeCardProperties,
-  normalizeAgentActivityDisplayMode
+  normalizeAgentActivityDisplayMode,
+  FLOATING_TERMINAL_WORKTREE_ID
 } from '../../../../../shared/constants'
 import {
   normalizeActivityGroupBy,
@@ -63,6 +64,7 @@ import {
 } from './ui-slice-hydration-sanitizers'
 import { hydrateAgentReadState, sanitizeTaskResumeState } from './ui-slice-hydration-values'
 import { hydrateStatusBarItems } from './ui-slice-hydration-status-bar-items'
+import { hydrateManagerAgentRecords } from '../../../../../shared/manager-agent-records'
 
 const MAX_LEFT_SIDEBAR_WIDTH = 500
 const MAX_RIGHT_SIDEBAR_WIDTH = 4000
@@ -247,6 +249,11 @@ export function createUiHydrationActions(set: UISliceSet, _get: UISliceGet): Par
             ui.codexTerminalServerIsolationNoticeSeen === true,
           codexSharedSettingsNoticeSeen: ui.codexSharedSettingsNoticeSeen === true,
           ...hydrateAgentReadState(ui),
+          managerAgents: hydrateManagerAgentRecords(
+            ui.managerAgents,
+            ui.managerAgentTabId,
+            FLOATING_TERMINAL_WORKTREE_ID
+          ),
           workspaceCleanupDismissals: sanitizeWorkspaceCleanupDismissals(
             ui.workspaceCleanup?.dismissals
           ),

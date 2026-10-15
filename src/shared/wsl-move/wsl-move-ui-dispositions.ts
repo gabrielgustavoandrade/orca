@@ -69,7 +69,12 @@ export const UI_STATE_DISPOSITIONS = {
     38,
     'Filters belong to the Jira host, not a moved workspace.'
   ),
-  taskResumeState: notApplicableDisposition(38)
+  taskResumeState: notApplicableDisposition(38),
+  managerAgents: {
+    disposition: 'drop-pty-binding',
+    item: 38,
+    note: 'Records bind live chat tabs by worktree id; a Manager whose tab is gone is recreated on open.'
+  }
 } as const satisfies Partial<Record<keyof PersistedUIState, WslMoveFieldDisposition>>
 
 /** UI fields with no repo, worktree, pane or path in them. */
@@ -126,7 +131,7 @@ export const UI_STATE_GLOBAL_FIELDS = [
   'notificationPermissionRequested',
   'updateReassuranceSeen',
   'setupGuideSidebarDismissed',
-  // Why global: the Manager chat lives in the desktop-local floating workspace.
+  // Why global: the v1 Manager chat lives in the desktop-local floating workspace.
   'managerAgentTabId',
   'setupGuideBrowserMilestoneMigrated',
   'setupGuideBrowserMilestoneLegacyComplete',

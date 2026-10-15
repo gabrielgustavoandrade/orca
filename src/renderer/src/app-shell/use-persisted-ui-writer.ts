@@ -175,7 +175,8 @@ export function usePersistedUIWriter(): void {
       // Why: "Clear completed" must survive restart, or cleared done/interrupted rows return.
       activityClearedAtByPaneKey: s.activityClearedAtByPaneKey,
       // Why: an explicit "mark unread" must survive restart, or the row comes back read.
-      manuallyUnreadTurnsByPaneKey: s.manuallyUnreadTurnsByPaneKey
+      manuallyUnreadTurnsByPaneKey: s.manuallyUnreadTurnsByPaneKey,
+      managerAgents: s.managerAgents
     }))
   )
   useEffect(() => {
