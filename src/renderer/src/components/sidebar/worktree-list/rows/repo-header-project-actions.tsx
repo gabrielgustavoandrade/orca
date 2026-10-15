@@ -44,6 +44,7 @@ import {
   stopRepoHeaderKeyboardToggle,
   stopRepoHeaderMenuEvent
 } from './header-event-guards'
+import { ManagerProjectMenuItem } from '../../../manager-agent/ManagerSidebarEntries'
 
 function getWorktreeVisibilityMenuLabel(
   repo: Repo,
@@ -165,6 +166,7 @@ export function RepoHeaderProjectActionsMenu({
             {translate('auto.components.sidebar.WorktreeList.64e55f7f01', 'Remove from group')}
           </DropdownMenuItem>
         ) : null}
+        <ManagerProjectMenuItem repoId={repo.id} />
         <DropdownMenuSeparator />
         <DropdownMenuItem variant="destructive" onSelect={() => actions.onRemoveProject(repo)}>
           <Trash2 className="size-3.5" />

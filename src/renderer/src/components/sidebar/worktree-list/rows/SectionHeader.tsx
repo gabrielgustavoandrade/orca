@@ -42,6 +42,7 @@ import {
 } from './header-event-guards'
 import type { WorktreeSidebarHeaderDrag } from '../drag/use-header-drag'
 import { getWorktreeOptionId } from './option-dom'
+import { ManagerProjectHeaderBadge } from '../../../manager-agent/ManagerSidebarEntries'
 
 export type SectionHeaderRowContext = {
   groupBy: WorktreeGroupBy
@@ -335,6 +336,7 @@ export function renderWorktreeSectionHeaderRow(args: {
               <RepoForkIndicator upstream={row.repo?.upstream} />
               <FolderPathStatusIndicator status={projectGroupPathStatus} />
               {isRepoHeader ? <RepoScanUnavailableIndicator repo={row.repo!} /> : null}
+              {isRepoHeader ? <ManagerProjectHeaderBadge repoId={row.repo!.id} /> : null}
             </div>
           </div>
         </div>

@@ -3,12 +3,17 @@ import type { AppState } from '@/store/types'
 import type { GlobalSettings } from '../../../../shared/global-settings-types'
 import { buildCmdJQuickActionContext, type CmdJQuickActionContext } from './quick-action-context'
 import { getCmdJQuickActions } from './quick-actions'
-import { OPEN_MANAGER_AGENT_QUICK_ACTION_ID } from './manager-agent-quick-action'
+import {
+  OPEN_MANAGER_AGENT_QUICK_ACTION_ID,
+  OPEN_PROJECT_MANAGER_QUICK_ACTION_ID,
+  OPEN_WORKSPACE_MANAGER_QUICK_ACTION_ID,
+  resolveManagerQuickActionTarget
+} from './manager-agent-quick-action'
 
-const mocks = vi.hoisted(() => ({ openManagerAgent: vi.fn() }))
+const mocks = vi.hoisted(() => ({ openManagerScope: vi.fn() }))
 
 vi.mock('@/components/manager-agent/open-manager-agent', () => ({
-  openManagerAgent: mocks.openManagerAgent
+  openManagerScope: mocks.openManagerScope
 }))
 
 function buildContext(settings: Partial<GlobalSettings> | null): CmdJQuickActionContext {
@@ -35,47 +40,88 @@ function buildContext(settings: Partial<GlobalSettings> | null): CmdJQuickAction
   })
 }
 
-function managerAction() {
-  const action = getCmdJQuickActions().find(
-    (entry) => entry.id === OPEN_MANAGER_AGENT_QUICK_ACTION_ID
-  )
-  if (!action) {
-    throw new Error('missing Open Manager quick action')
+function action(id: string) {
+  const found = getCmdJQuickActions().find((entry) => entry.id === id)
+  if (!found) {
+    throw new Error(`missing quick action ${id}`)
   }
-  return action
+  return found
 }
 
-describe('Open Manager quick action', () => {
+const ON = { managerAgentEnabled: true, activeWorktreeId: 'w1', managerProjectId: 'p1' }
+
+describe('Manager quick actions', () => {
   beforeEach(() => {
-    mocks.openManagerAgent.mockReset()
+    mocks.openManagerScope.mockReset()
   })
 
-  it('is hidden until the Manager experiment is on, with no workspace required', () => {
-    expect(managerAction().isAvailable(buildContext(null))).toEqual({
-      available: false,
-      reason: 'feature-disabled'
+  it('stay hidden until the Manager experiment is on', () => {
+    for (const id of [
+      OPEN_MANAGER_AGENT_QUICK_ACTION_ID,
+      OPEN_PROJECT_MANAGER_QUICK_ACTION_ID,
+      OPEN_WORKSPACE_MANAGER_QUICK_ACTION_ID
+    ]) {
+      expect(action(id).isAvailable(buildContext(null))).toEqual({
+        available: false,
+        reason: 'feature-disabled'
+      })
+    }
+    expect(
+      action(OPEN_MANAGER_AGENT_QUICK_ACTION_ID).isAvailable(
+        buildContext({ experimentalManagerAgent: true })
+      )
+    ).toEqual({ available: true })
+  })
+
+  it('target global, the active project and the active workspace', () => {
+    expect(resolveManagerQuickActionTarget('global', ON)).toEqual({
+      available: true,
+      scopeKey: 'global'
     })
-    expect(managerAction().isAvailable(buildContext({ experimentalManagerAgent: false }))).toEqual({
-      available: false,
-      reason: 'feature-disabled'
+    expect(resolveManagerQuickActionTarget('project', ON)).toEqual({
+      available: true,
+      scopeKey: 'project:p1'
     })
-    expect(managerAction().isAvailable(buildContext({ experimentalManagerAgent: true }))).toEqual({
+    expect(resolveManagerQuickActionTarget('workspace', ON)).toEqual({
+      available: true,
+      scopeKey: 'workspace:w1'
+    })
+  })
+
+  it('need an active workspace, and a project for the project Manager', () => {
+    const noWorkspace = { ...ON, activeWorktreeId: null, managerProjectId: null }
+    expect(resolveManagerQuickActionTarget('global', noWorkspace)).toMatchObject({
       available: true
     })
-  })
-
-  it('opens the Manager from the palette', async () => {
-    await expect(
-      managerAction().run(buildContext({ experimentalManagerAgent: true }))
-    ).resolves.toEqual({ status: 'ok' })
-    await vi.waitFor(() => expect(mocks.openManagerAgent).toHaveBeenCalledWith('command_palette'))
-  })
-
-  it('refuses to run while the experiment is off', async () => {
-    await expect(managerAction().run(buildContext(null))).resolves.toEqual({
-      status: 'unavailable',
-      reason: 'feature-disabled'
+    expect(resolveManagerQuickActionTarget('workspace', noWorkspace)).toEqual({
+      available: false,
+      reason: 'no-active-workspace'
     })
-    expect(mocks.openManagerAgent).not.toHaveBeenCalled()
+    expect(resolveManagerQuickActionTarget('project', { ...ON, managerProjectId: null })).toEqual({
+      available: false,
+      reason: 'no-project'
+    })
+    expect(
+      action(OPEN_PROJECT_MANAGER_QUICK_ACTION_ID).isAvailable(
+        buildContext({ experimentalManagerAgent: true })
+      )
+    ).toEqual({ available: false, reason: 'no-active-workspace' })
+  })
+
+  it('open the resolved scope from the palette', async () => {
+    const ctx = { ...buildContext({ experimentalManagerAgent: true }), ...ON }
+    await expect(action(OPEN_PROJECT_MANAGER_QUICK_ACTION_ID).run(ctx)).resolves.toEqual({
+      status: 'ok'
+    })
+    await vi.waitFor(() =>
+      expect(mocks.openManagerScope).toHaveBeenCalledWith('project:p1', 'command_palette')
+    )
+  })
+
+  it('refuse to run while the experiment is off', async () => {
+    await expect(
+      action(OPEN_MANAGER_AGENT_QUICK_ACTION_ID).run(buildContext(null))
+    ).resolves.toEqual({ status: 'unavailable', reason: 'feature-disabled' })
+    expect(mocks.openManagerScope).not.toHaveBeenCalled()
   })
 })

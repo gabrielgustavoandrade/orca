@@ -9,6 +9,7 @@ import {
   runActiveNativeChatSplit
 } from '@/components/native-chat/native-chat-layout-actions'
 import type { NativeChatSplitDirection } from '@/components/native-chat/native-chat-split-shortcut'
+import { projectIdForManagerWorktree } from '@/components/manager-agent/manager-agent-scope'
 
 export type CmdJUnavailableReason =
   | 'loading'
@@ -18,6 +19,7 @@ export type CmdJUnavailableReason =
   | 'no-active-chat'
   | 'client-action-unsupported'
   | 'feature-disabled'
+  | 'no-project'
 
 export type CmdJQuickActionAvailability =
   | { available: true }
@@ -46,6 +48,8 @@ export type CmdJQuickActionContext = {
   canSplitActiveChat?: boolean
   splitActiveChat?: (direction: NativeChatSplitDirection) => boolean
   managerAgentEnabled?: boolean
+  /** The active workspace's project, for "Open project manager". */
+  managerProjectId?: string | null
 }
 
 export function resolveCmdJActiveGroupId(
@@ -182,6 +186,7 @@ export function buildCmdJQuickActionContext(args: {
       ? resolveActiveNativeChatSplitTarget(args.state, activeWorktreeId, activeGroupId)
       : null
 
+  const managerAgentEnabled = args.state.settings?.experimentalManagerAgent === true
   return {
     activeView: args.state.activeView,
     activeWorktreeId,
@@ -200,7 +205,11 @@ export function buildCmdJQuickActionContext(args: {
     canSplitActiveChat: canRunNativeChatSplitTarget(args.state, activeChatTarget),
     splitActiveChat: (direction) =>
       runActiveNativeChatSplit(activeWorktreeId, activeGroupId, direction),
-    managerAgentEnabled: args.state.settings?.experimentalManagerAgent === true
+    managerAgentEnabled,
+    managerProjectId:
+      managerAgentEnabled && activeWorktreeId
+        ? projectIdForManagerWorktree(args.state, activeWorktreeId)
+        : null
   }
 }
 
@@ -223,5 +232,7 @@ export function getUnavailableQuickActionMessage(
       return `Can't ${actionTitle.toLowerCase()} — this client and runtime do not support it.`
     case 'feature-disabled':
       return `Can't ${actionTitle.toLowerCase()} — its experimental setting is off.`
+    case 'no-project':
+      return `Can't ${actionTitle.toLowerCase()} — the active workspace is not in a project.`
   }
 }

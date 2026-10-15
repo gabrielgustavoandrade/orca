@@ -53,9 +53,7 @@ export function shouldShowManagerAgentButton(
 }
 
 const AgentDashboardSidebarEntry = lazyWithRetry(() => import('./AgentDashboardSidebarEntry'))
-const ManagerAgentSidebarEntry = lazyWithRetry(
-  () => import('../manager-agent/ManagerAgentSidebarEntry')
-)
+const ManagerSidebarCard = lazyWithRetry(() => import('../manager-agent/ManagerSidebarCard'))
 
 const SidebarNav = React.memo(function SidebarNav() {
   // Why: this memo boundary needs its own language subscription, while
@@ -98,6 +96,11 @@ const SidebarNav = React.memo(function SidebarNav() {
       className="flex flex-col gap-0.5 px-2 pt-2 pb-1"
       data-contextual-tour-target="sidebar-navigation"
     >
+      {showManagerAgentButton ? (
+        <React.Suspense fallback={null}>
+          <ManagerSidebarCard />
+        </React.Suspense>
+      ) : null}
       <button
         type="button"
         onClick={() => openModal('worktree-palette')}
@@ -219,11 +222,6 @@ const SidebarNav = React.memo(function SidebarNav() {
       {showAgentDashboardButton ? (
         <React.Suspense fallback={null}>
           <AgentDashboardSidebarEntry />
-        </React.Suspense>
-      ) : null}
-      {showManagerAgentButton ? (
-        <React.Suspense fallback={null}>
-          <ManagerAgentSidebarEntry />
         </React.Suspense>
       ) : null}
       {showMobileButton ? (

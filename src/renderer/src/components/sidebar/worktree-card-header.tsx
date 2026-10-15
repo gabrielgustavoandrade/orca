@@ -14,6 +14,7 @@ import type { WorktreeCardPresentation } from './worktree-card-presentation'
 import { WorktreeCardSshHostControl } from './WorktreeCardSshHostControl'
 import { WorktreeTitleInlineRename } from './WorktreeTitleInlineRename'
 import type { WorktreeCardController } from './use-worktree-card-controller'
+import { ManagerWorktreeBadge } from '../manager-agent/ManagerSidebarEntries'
 
 // Why: pinned repo icon and compact inline badge share this chip shell so both repo cues read as the same affordance.
 function RepoIdentityChip({
@@ -214,6 +215,7 @@ export function WorktreeCardHeader({
             </TooltipContent>
           </Tooltip>
         ) : null}
+        <ManagerWorktreeBadge worktreeId={worktree.id} />
         {!compactCards && worktree.isMainWorktree && !isFolder && (
           <Tooltip>
             <TooltipTrigger asChild>

@@ -45,6 +45,7 @@ import {
   shouldUseNativeContextMenu
 } from './worktree-context-menu-policy'
 import { CLOSE_ALL_CONTEXT_MENUS_EVENT } from '@/lib/close-all-context-menus'
+import { ManagerWorktreeMenuItem } from '../manager-agent/ManagerSidebarEntries'
 
 export default function WorktreeContextMenuView({ model }: { model: WorktreeContextMenuModel }) {
   const {
@@ -163,6 +164,7 @@ export default function WorktreeContextMenuView({ model }: { model: WorktreeCont
               {translate('auto.components.sidebar.WorktreeContextMenu.439fa94d53', 'Update')}
             </DropdownMenuItem>
           )}
+          {!isMultiContext && <ManagerWorktreeMenuItem worktreeId={worktree.id} />}
           <WorktreeStatusMenuItems
             contextWorkspaceStatus={contextWorkspaceStatus}
             deletingContext={deletingContext}

@@ -27,7 +27,8 @@ const mocks = vi.hoisted(() => ({
   getAgentBucketCounts: vi.fn(),
   dismissMobileOnboardingBadge: vi.fn(),
   setSetupGuideSidebarDismissed: vi.fn(),
-  openManagerAgent: vi.fn()
+  openManagerAgent: vi.fn(),
+  managerCounts: { working: 0, needsYou: 0 }
 }))
 
 vi.mock('@/store', () => ({
@@ -54,6 +55,10 @@ vi.mock('@/components/dashboard/useAgentBucketCounts', () => ({
 
 vi.mock('../manager-agent/open-manager-agent', () => ({
   openManagerAgent: mocks.openManagerAgent
+}))
+
+vi.mock('../manager-agent/use-manager-scope-counts', () => ({
+  useManagerScopeCounts: () => mocks.managerCounts
 }))
 
 vi.mock('@/hooks/useShortcutLabel', () => ({
@@ -132,6 +137,7 @@ function setSidebarState({
     settings,
     repos,
     activeView: 'worktrees',
+    managerScope: 'global',
     openTaskPage: mocks.openTaskPage,
     openAutomationsPage: mocks.openAutomationsPage,
     openActivityPage: mocks.openActivityPage,
@@ -219,6 +225,7 @@ describe('SidebarNav', () => {
     await i18n.changeLanguage('en')
     mocks.hasPairedMobileDevice = false
     mocks.agentBucketCounts = { attention: 0, working: 0, done: 0, idle: 0 }
+    mocks.managerCounts = { working: 0, needsYou: 0 }
     setSidebarState()
   })
 
@@ -242,30 +249,58 @@ describe('SidebarNav', () => {
     expect(mocks.getAgentBucketCounts).toHaveBeenCalledTimes(1)
   })
 
-  it('shows the Manager entry only when its experiment is enabled', () => {
+  it('shows the Manager card only when its experiment is enabled', () => {
     expect(shouldShowManagerAgentButton(null)).toBe(false)
     expect(shouldShowManagerAgentButton({})).toBe(false)
     expect(shouldShowManagerAgentButton(getDefaultSettings('/tmp'))).toBe(false)
     expect(shouldShowManagerAgentButton({ experimentalManagerAgent: true })).toBe(true)
   })
 
-  it('keeps the Manager row unmounted while its experiment is off', async () => {
+  it('keeps the Manager card unmounted while its experiment is off', async () => {
     const container = await renderSidebarNav()
 
-    expect(queryButtonByText(container, 'Manager')).toBeNull()
+    expect(container.querySelector('[data-manager-sidebar-card]')).toBeNull()
   })
 
-  it('opens the Manager from its sidebar row when the experiment is on', async () => {
+  it('pins the Manager card above Search and opens the global Manager from it', async () => {
+    mocks.managerCounts = { working: 4, needsYou: 1 }
     setSidebarState({
       settings: { ...getDefaultSettings('/tmp'), experimentalManagerAgent: true }
     })
     const container = await renderSidebarNav()
 
-    await waitFor(() => expect(queryButtonByText(container, 'Manager')).not.toBeNull())
+    await waitFor(() =>
+      expect(container.querySelector('[data-manager-sidebar-card]')).not.toBeNull()
+    )
+    const card = container.querySelector<HTMLButtonElement>('[data-manager-sidebar-card]')!
+    const search = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Search worktrees and browser tabs"]'
+    )!
+    const buttons = Array.from(container.querySelectorAll('button'))
+    expect(buttons.indexOf(card)).toBeGreaterThan(-1)
+    expect(buttons.indexOf(card)).toBeLessThan(buttons.indexOf(search))
+    expect(card.textContent).toContain('Manager')
+    expect(card.textContent).toContain('4 working')
+    expect(card.textContent).toContain('1 need you')
     act(() => {
-      queryButtonByText(container, 'Manager')?.click()
+      card.click()
     })
     expect(mocks.openManagerAgent).toHaveBeenCalledWith('sidebar')
+  })
+
+  it('reads Idle on the Manager card when nothing is delegated', async () => {
+    mocks.managerCounts = { working: 0, needsYou: 0 }
+    setSidebarState({
+      settings: { ...getDefaultSettings('/tmp'), experimentalManagerAgent: true }
+    })
+    const container = await renderSidebarNav()
+
+    await waitFor(() =>
+      expect(container.querySelector('[data-manager-sidebar-card]')?.textContent).toContain('Idle')
+    )
+    expect(container.querySelector('[data-manager-sidebar-card]')?.textContent).not.toContain(
+      'working'
+    )
   })
 
   it('uses a question glyph only for the Needs You count', async () => {
