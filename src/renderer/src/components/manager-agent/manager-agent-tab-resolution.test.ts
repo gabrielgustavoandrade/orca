@@ -52,9 +52,15 @@ describe('findAddedManagerAgentTab', () => {
 })
 
 describe('pickManagerAgent', () => {
-  it('uses the default agent when it is installed and enabled', () => {
+  it('uses the default agent when it is installed, enabled and can open as a chat', () => {
+    expect(pickManagerAgent({ defaultTuiAgent: 'codex', detected: ['claude', 'codex'] })).toBe(
+      'codex'
+    )
+  })
+
+  it('prefers a chat-capable agent over a default that can only run as a terminal', () => {
     expect(pickManagerAgent({ defaultTuiAgent: 'gemini', detected: ['claude', 'gemini'] })).toBe(
-      'gemini'
+      'claude'
     )
   })
 
@@ -74,7 +80,10 @@ describe('pickManagerAgent', () => {
     ).toBe('claude')
   })
 
-  it('falls back to any installed agent, and to none', () => {
+  it('falls back to the terminal-only default, then any installed agent, then none', () => {
+    expect(pickManagerAgent({ defaultTuiAgent: 'aider', detected: ['gemini', 'aider'] })).toBe(
+      'aider'
+    )
     expect(pickManagerAgent({ defaultTuiAgent: null, detected: ['gemini'] })).toBe('gemini')
     expect(pickManagerAgent({ defaultTuiAgent: 'claude', detected: [] })).toBeNull()
   })

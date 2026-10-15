@@ -37,8 +37,9 @@ export function findAddedManagerAgentTab<T extends ManagerAgentTab>(
 }
 
 /**
- * The user's default agent backs the Manager; otherwise the first installed agent that can open
- * as a chat, then any installed agent. A "blank" default still needs an agent here.
+ * A chat-capable agent backs the Manager, because only a chat can render on the Manager page:
+ * the user's default when it can chat, else the first installed chat-capable agent. Only when
+ * none can chat does it fall back to the default, then any installed agent, as a terminal.
  */
 export function pickManagerAgent(args: {
   defaultTuiAgent: TuiAgent | 'blank' | null | undefined
@@ -46,16 +47,15 @@ export function pickManagerAgent(args: {
   disabled?: readonly unknown[] | null
 }): TuiAgent | null {
   const preferred = args.defaultTuiAgent === 'blank' ? null : args.defaultTuiAgent
-  if (
-    preferred &&
-    args.detected.includes(preferred) &&
-    pickTuiAgent(preferred, [preferred], args.disabled)
-  ) {
+  const usable = (agent: TuiAgent): boolean =>
+    args.detected.includes(agent) && pickTuiAgent(agent, [agent], args.disabled) !== null
+  const chatCapable = args.detected.filter((agent) => isAgentSessionHandleProvider(agent))
+  if (preferred && usable(preferred) && chatCapable.includes(preferred)) {
     return preferred
   }
-  const chatCapable = args.detected.filter((agent) => isAgentSessionHandleProvider(agent))
   return (
     pickTuiAgent(null, chatCapable, args.disabled) ??
+    (preferred && usable(preferred) ? preferred : null) ??
     pickTuiAgent(null, args.detected, args.disabled)
   )
 }

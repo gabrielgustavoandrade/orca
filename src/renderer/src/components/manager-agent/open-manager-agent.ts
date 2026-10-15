@@ -1,12 +1,16 @@
 import { toast } from 'sonner'
 import { useAppStore } from '@/store'
 import { translate } from '@/i18n/i18n'
-import { FLOATING_TERMINAL_WORKTREE_ID } from '../../../../shared/constants'
 import { structuredAgentSessionTabId } from '../../../../shared/structured-agent-session-projection'
 import { withTimeout } from '../../../../shared/promise-timeout-fallback'
 import type { Tab } from '../../../../shared/tab-types'
 import type { TuiAgent } from '../../../../shared/tui-agent'
 import type { LaunchSource } from '../../../../shared/telemetry-events'
+import {
+  GLOBAL_MANAGER_SCOPE_KEY,
+  type ManagerAgentRecord,
+  type ManagerScopeKey
+} from '../../../../shared/manager-agent-records'
 import {
   getAgentDetectionTargetKeyForWorktree,
   parseAgentDetectionTargetKey
@@ -17,52 +21,68 @@ import {
 } from '@/lib/agent-detection-target-inventory'
 import { newAgentLaunchRequestId } from '@/lib/agent-launch-request-id'
 import { launchAgentInNewTab, type LaunchAgentInNewTabResult } from '@/lib/launch-agent-in-new-tab'
-import { revealFloatingWorkspacePanel } from '@/lib/floating-workspace-panel-reveal'
+import { activateAndRevealWorktree } from '@/lib/worktree-activation'
 import { focusTerminalTabSurface } from '@/lib/focus-terminal-tab-surface'
-import { buildManagerAgentBrief, resolveManagerAgentCliCommand } from './manager-agent-brief'
+import {
+  buildManagerAgentBrief,
+  MANAGER_AGENT_BRIEF_VERSION,
+  resolveManagerAgentCliCommand
+} from './manager-agent-brief'
+import { buildManagerBriefScope, managerAgentPromptName } from './manager-agent-brief-scope'
 import {
   findAddedManagerAgentTab,
   findManagerAgentTab,
   pickManagerAgent
 } from './manager-agent-tab-resolution'
-import { getManagerPageTabId, setManagerPageTabId } from './manager-agent-page-tab'
+import { resolveDefaultParentScopeKey, resolveManagerHostWorktreeId } from './manager-agent-scope'
+import { setManagerScopeLaunching } from './manager-agent-launch-state'
 
 // Why bounded: detection only picks the agent; a slow host must not leave the click hanging.
 const AGENT_DETECTION_TIMEOUT_MS = 5_000
 
-let pendingOpen: Promise<void> | null = null
+const pendingOpens = new Map<ManagerScopeKey, Promise<void>>()
 
-function floatingTabs(): Tab[] {
-  return useAppStore.getState().unifiedTabsByWorktree[FLOATING_TERMINAL_WORKTREE_ID] ?? []
+function hostTabs(worktreeId: string): Tab[] {
+  return useAppStore.getState().unifiedTabsByWorktree[worktreeId] ?? []
 }
 
-function showManagerPage(tabId: string | null): void {
-  setManagerPageTabId(tabId)
-  useAppStore.getState().setActiveView('manager')
+function launchFailed(): void {
+  toast.error(
+    translate('auto.components.managerAgent.launchFailed', 'Could not start the Manager.')
+  )
 }
 
-function focusManagerAgentTab(tab: Tab): void {
+/** The record's tab, when it still exists in its host workspace. */
+export function findManagerRecordTab(
+  tabsByWorktree: Record<string, Tab[] | undefined>,
+  record: ManagerAgentRecord | undefined
+): Tab | null {
+  return record
+    ? findManagerAgentTab(tabsByWorktree[record.hostWorktreeId] ?? [], record.tabId)
+    : null
+}
+
+/** Shows a terminal-fallback Manager where its PTY lives; the Manager page cannot host it. */
+export function revealTerminalManager(record: ManagerAgentRecord): void {
   const state = useAppStore.getState()
-  if (tab.contentType === 'agent-session') {
-    // Why: the chat renders full-page in the Manager view; the floating panel stays as it was.
-    showManagerPage(tab.id)
+  const tab = findManagerRecordTab(state.unifiedTabsByWorktree, record)
+  if (!tab || tab.contentType !== 'terminal') {
     return
   }
-  setManagerPageTabId(tab.id)
-  revealFloatingWorkspacePanel(state)
-  // Why: the floating panel renders its group's activeTabId; selecting only the worktree's
-  // active terminal would leave the Manager behind another floating tab.
-  state.focusGroup(FLOATING_TERMINAL_WORKTREE_ID, tab.groupId)
-  state.setActiveTabForWorktree(FLOATING_TERMINAL_WORKTREE_ID, tab.entityId)
-  state.activateTab(tab.id, { worktreeId: FLOATING_TERMINAL_WORKTREE_ID })
-  state.setActiveTabType('terminal', FLOATING_TERMINAL_WORKTREE_ID)
+  const worktreeId = record.hostWorktreeId
+  // Why: the floating workspace reveals its panel here; any other host becomes the active worktree.
+  activateAndRevealWorktree(worktreeId)
+  state.focusGroup(worktreeId, tab.groupId)
+  state.setActiveTabForWorktree(worktreeId, tab.entityId)
+  state.activateTab(tab.id, { worktreeId })
+  state.setActiveTabType('terminal', worktreeId)
   focusTerminalTabSurface(tab.entityId)
 }
 
-async function detectFloatingAgents(): Promise<TuiAgent[]> {
+async function detectAgents(worktreeId: string): Promise<TuiAgent[]> {
   const state = useAppStore.getState()
   const target = parseAgentDetectionTargetKey(
-    getAgentDetectionTargetKeyForWorktree(state, FLOATING_TERMINAL_WORKTREE_ID)
+    getAgentDetectionTargetKeyForWorktree(state, worktreeId)
   )
   if (!target) {
     return []
@@ -77,6 +97,7 @@ async function detectFloatingAgents(): Promise<TuiAgent[]> {
 /** The tab the launch opened, once its route knows it; null when nothing opened. */
 async function resolveLaunchedTabId(
   result: NonNullable<LaunchAgentInNewTabResult>,
+  hostWorktreeId: string,
   tabIdsBefore: ReadonlySet<string>
 ): Promise<string | null> {
   if (result.surface.kind === 'local-terminal') {
@@ -88,22 +109,33 @@ async function resolveLaunchedTabId(
   }
   // Why: a declined chat or a host-published terminal does not report its tab id.
   if (settlement === undefined || settlement.kind === 'terminal') {
-    return findAddedManagerAgentTab(tabIdsBefore, floatingTabs())?.id ?? null
+    return findAddedManagerAgentTab(tabIdsBefore, hostTabs(hostWorktreeId))?.id ?? null
   }
   if (settlement.kind === 'failed' && !settlement.notified) {
-    toast.error(
-      translate('auto.components.managerAgent.launchFailed', 'Could not start the Manager.')
-    )
+    launchFailed()
   }
   return null
 }
 
-async function createManagerAgentChat(launchSource: LaunchSource): Promise<void> {
-  const settings = useAppStore.getState().settings
+async function createManagerAgentChat(
+  scopeKey: ManagerScopeKey,
+  launchSource: LaunchSource
+): Promise<void> {
+  const state = useAppStore.getState()
+  const hostWorktreeId = resolveManagerHostWorktreeId(state, scopeKey)
+  if (!hostWorktreeId) {
+    toast.error(
+      translate(
+        'auto.components.managerAgent.noHost',
+        'This project has no workspace to run its Manager in.'
+      )
+    )
+    return
+  }
   const agent = pickManagerAgent({
-    defaultTuiAgent: settings?.defaultTuiAgent,
-    detected: await detectFloatingAgents(),
-    disabled: settings?.disabledTuiAgents
+    defaultTuiAgent: state.settings?.defaultTuiAgent,
+    detected: await detectAgents(hostWorktreeId),
+    disabled: state.settings?.disabledTuiAgents
   })
   if (!agent) {
     toast.error(
@@ -114,74 +146,101 @@ async function createManagerAgentChat(launchSource: LaunchSource): Promise<void>
     )
     return
   }
-  const tabIdsBefore = new Set(floatingTabs().map((tab) => tab.id))
-  const viewBefore = useAppStore.getState().activeView
-  showManagerPage(null)
-  // Why: a launch that opened nothing must not strand the user on an empty Manager page.
-  const leaveEmptyManagerPage = (): void => {
-    const state = useAppStore.getState()
-    if (state.activeView === 'manager' && getManagerPageTabId() === null) {
-      state.setActiveView(viewBefore === 'manager' ? 'terminal' : viewBefore)
-    }
+  const current = useAppStore.getState()
+  const parentScopeKey = resolveDefaultParentScopeKey(current, scopeKey)
+  const briefScope = buildManagerBriefScope(current, scopeKey, parentScopeKey)
+  if (!briefScope) {
+    launchFailed()
+    return
   }
+  const tabIdsBefore = new Set(hostTabs(hostWorktreeId).map((tab) => tab.id))
+  // Why first-message: structured launches have no hidden-instruction channel for any agent yet.
   const result = launchAgentInNewTab({
     requestId: newAgentLaunchRequestId(),
     agent,
-    worktreeId: FLOATING_TERMINAL_WORKTREE_ID,
-    prompt: buildManagerAgentBrief(resolveManagerAgentCliCommand(import.meta.env.DEV)),
+    worktreeId: hostWorktreeId,
+    prompt: buildManagerAgentBrief(resolveManagerAgentCliCommand(import.meta.env.DEV), briefScope),
     launchSource,
-    // Why: floating launches must not take the main window's global tab selection.
+    // Why: a Manager must not take the main window's tab selection in its host workspace.
     activate: false
   })
   if (!result) {
-    leaveEmptyManagerPage()
-    toast.error(
-      translate('auto.components.managerAgent.launchFailed', 'Could not start the Manager.')
-    )
+    launchFailed()
     return
   }
-  const tabId = await resolveLaunchedTabId(result, tabIdsBefore)
-  const tab = tabId ? findManagerAgentTab(floatingTabs(), tabId) : null
+  const tabId = await resolveLaunchedTabId(result, hostWorktreeId, tabIdsBefore)
+  const tab = tabId ? findManagerAgentTab(hostTabs(hostWorktreeId), tabId) : null
   if (!tab) {
-    leaveEmptyManagerPage()
     return
   }
-  useAppStore
-    .getState()
-    .setTabCustomTitle(
-      tab.contentType === 'terminal' ? tab.entityId : tab.id,
-      translate('auto.components.managerAgent.tabTitle', 'Manager'),
-      { recordInteraction: false }
-    )
-  await window.api.ui.set({ managerAgentTabId: tab.id })
-  focusManagerAgentTab(tab)
+  const after = useAppStore.getState()
+  after.setManagerAgentRecord({
+    scopeKey,
+    tabId: tab.id,
+    ...(tab.contentType === 'agent-session' ? { sessionId: tab.entityId } : {}),
+    agent,
+    hostWorktreeId,
+    ...(parentScopeKey ? { parentScopeKey } : {}),
+    briefVersion: MANAGER_AGENT_BRIEF_VERSION,
+    createdAt: Date.now()
+  })
+  const promptName = managerAgentPromptName(after, scopeKey)
+  after.setTabCustomTitle(
+    tab.contentType === 'terminal' ? tab.entityId : tab.id,
+    promptName.charAt(0).toUpperCase() + promptName.slice(1),
+    { recordInteraction: false }
+  )
 }
 
-async function openOrCreateManagerAgentChat(launchSource: LaunchSource): Promise<void> {
-  if (useAppStore.getState().settings?.experimentalManagerAgent !== true) {
+async function openOrCreateManagerAgentChat(
+  scopeKey: ManagerScopeKey,
+  launchSource: LaunchSource
+): Promise<void> {
+  const state = useAppStore.getState()
+  if (state.settings?.experimentalManagerAgent !== true) {
     return
   }
-  const { managerAgentTabId } = await window.api.ui.get()
-  const existing = findManagerAgentTab(floatingTabs(), managerAgentTabId)
-  if (existing) {
-    focusManagerAgentTab(existing)
+  state.setManagerScope(scopeKey)
+  state.setActiveView('manager')
+  if (findManagerRecordTab(state.unifiedTabsByWorktree, state.managerAgents[scopeKey])) {
     return
   }
-  await createManagerAgentChat(launchSource)
+  setManagerScopeLaunching(scopeKey, true)
+  try {
+    await createManagerAgentChat(scopeKey, launchSource)
+  } finally {
+    setManagerScopeLaunching(scopeKey, false)
+  }
 }
 
-/** Shows THE Manager chat in the Manager view, creating it with its brief if it is gone. */
-export function openManagerAgent(launchSource: LaunchSource): Promise<void> {
+/**
+ * Shows a scope's Manager on the Manager page, starting it with its brief when it has none or
+ * its chat is gone. Resume is not attempted: a gone chat is replaced by a fresh one.
+ */
+export function openManagerScope(
+  scopeKey: ManagerScopeKey,
+  launchSource: LaunchSource
+): Promise<void> {
+  const pending = pendingOpens.get(scopeKey)
+  if (pending) {
+    useAppStore.getState().setManagerScope(scopeKey)
+    useAppStore.getState().setActiveView('manager')
+    return pending
+  }
   // Why: a second click while the first launch is settling must not start a second Manager.
-  pendingOpen ??= openOrCreateManagerAgentChat(launchSource)
+  const open = openOrCreateManagerAgentChat(scopeKey, launchSource)
     .catch((error) => {
       console.error('Failed to open the Manager', error)
-      toast.error(
-        translate('auto.components.managerAgent.launchFailed', 'Could not start the Manager.')
-      )
+      launchFailed()
     })
     .finally(() => {
-      pendingOpen = null
+      pendingOpens.delete(scopeKey)
     })
-  return pendingOpen
+  pendingOpens.set(scopeKey, open)
+  return open
+}
+
+/** Opens the all-projects Manager. */
+export function openManagerAgent(launchSource: LaunchSource): Promise<void> {
+  return openManagerScope(GLOBAL_MANAGER_SCOPE_KEY, launchSource)
 }
