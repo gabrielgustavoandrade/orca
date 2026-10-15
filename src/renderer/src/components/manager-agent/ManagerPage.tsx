@@ -1,23 +1,70 @@
-import { useEffect, useMemo } from 'react'
-import { BriefcaseBusiness } from 'lucide-react'
+import { useEffect, useMemo, useSyncExternalStore } from 'react'
+import { BriefcaseBusiness, CornerLeftUp } from 'lucide-react'
 import { useAppStore } from '@/store'
 import { translate } from '@/i18n/i18n'
+import { Button } from '@/components/ui/button'
 import {
   structuredAgentSessionOwnerForTab,
   structuredAgentSessionTargetForHost
 } from '@/runtime/structured-agent-session-owner'
+import { isFloatingWorkspacePanelFocused } from '@/lib/floating-workspace-terminal-actions'
 import NativeChatView from '../native-chat/NativeChatView'
-import { FLOATING_TERMINAL_WORKTREE_ID } from '../../../../shared/constants'
 import { isStructuredTab } from '../../../../shared/structured-agent-session-tab'
-import { findManagerAgentTab } from './manager-agent-tab-resolution'
-import { setManagerPageTabId, useManagerPageTabId } from './manager-agent-page-tab'
+import {
+  parseManagerScopeKey,
+  projectManagerScopeKey,
+  type ManagerAgentRecord,
+  type ManagerScopeKey
+} from '../../../../shared/manager-agent-records'
+import { findManagerRecordTab, openManagerScope, revealTerminalManager } from './open-manager-agent'
+import { useManagerScopeLaunching } from './manager-agent-launch-state'
+import { ManagerScopeSwitcher } from './ManagerScopeSwitcher'
+import { ManagerOverviewPanel } from './ManagerOverviewPanel'
+import { managerDisplayName, managerScopeLabel } from './manager-scope-labels'
+import { projectIdForManagerWorktree } from './manager-agent-scope'
 
-function ManagerChat({ tabId }: { tabId: string }): React.JSX.Element {
-  const tab = useAppStore((state) =>
-    findManagerAgentTab(state.unifiedTabsByWorktree[FLOATING_TERMINAL_WORKTREE_ID] ?? [], tabId)
+function subscribeFocus(onChange: () => void): () => void {
+  document.addEventListener('focusin', onChange)
+  document.addEventListener('focusout', onChange)
+  return () => {
+    document.removeEventListener('focusin', onChange)
+    document.removeEventListener('focusout', onChange)
+  }
+}
+
+/** Whether keyboard focus is inside the floating workspace panel, which can sit over this page. */
+function useFloatingPanelFocused(): boolean {
+  return useSyncExternalStore(
+    subscribeFocus,
+    () => isFloatingWorkspacePanelFocused(),
+    () => false
   )
+}
+
+function ManagerPageNotice({
+  text,
+  action
+}: {
+  text: string
+  action?: { label: string; run: () => void }
+}): React.JSX.Element {
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center gap-3 p-4 text-sm text-muted-foreground">
+      <span>{text}</span>
+      {action ? (
+        <Button variant="outline" size="sm" onClick={action.run}>
+          {action.label}
+        </Button>
+      ) : null}
+    </div>
+  )
+}
+
+function ManagerChat({ record }: { record: ManagerAgentRecord }): React.JSX.Element {
+  const tab = useAppStore((state) => findManagerRecordTab(state.unifiedTabsByWorktree, record))
   const owner = useAppStore((state) => (tab ? structuredAgentSessionOwnerForTab(state, tab) : null))
   const target = useMemo(() => structuredAgentSessionTargetForHost(owner), [owner])
+  const floatingPanelFocused = useFloatingPanelFocused()
   if (!tab) {
     return (
       <ManagerPageNotice
@@ -25,13 +72,27 @@ function ManagerChat({ tabId }: { tabId: string }): React.JSX.Element {
       />
     )
   }
-  if (!isStructuredTab(tab) || !tab.agentSessionAgent || !target) {
-    // Why: a terminal-fallback Manager has a PTY owned by the floating workspace; hosting it here needs the Activity-style portal.
+  if (!isStructuredTab(tab) || !tab.agentSessionAgent) {
+    // Why: a terminal-fallback Manager's PTY belongs to its host workspace; this page cannot host it.
     return (
       <ManagerPageNotice
         text={translate(
           'auto.components.managerAgent.pageTerminalOnly',
-          'This Manager runs as a terminal. Open it from the floating workspace.'
+          'This Manager runs as a terminal in its workspace.'
+        )}
+        action={{
+          label: translate('auto.components.managerAgent.openTerminal', 'Open terminal'),
+          run: () => revealTerminalManager(record)
+        }}
+      />
+    )
+  }
+  if (!target) {
+    return (
+      <ManagerPageNotice
+        text={translate(
+          'auto.components.managerAgent.pageUnsupportedHost',
+          'This Manager’s workspace host cannot show chats here yet.'
         )}
       />
     )
@@ -44,26 +105,133 @@ function ManagerChat({ tabId }: { tabId: string }): React.JSX.Element {
       sessionId={tab.entityId}
       agent={tab.agentSessionAgent}
       isVisible
-      isFocusedGroup
+      // Why: the floating panel can take focus over this page; its chat then owns find and font chords.
+      isFocusedGroup={!floatingPanelFocused}
       target={target}
     />
   )
 }
 
-function ManagerPageNotice({ text }: { text: string }): React.JSX.Element {
+function ManagerScopeBody({ scopeKey }: { scopeKey: ManagerScopeKey }): React.JSX.Element {
+  const record = useAppStore((state) => state.managerAgents[scopeKey])
+  const alive = useAppStore(
+    (state) => findManagerRecordTab(state.unifiedTabsByWorktree, record) !== null
+  )
+  const launching = useManagerScopeLaunching(scopeKey)
+  if (launching) {
+    return (
+      <ManagerPageNotice
+        text={translate('auto.components.managerAgent.pageStarting', 'Starting the Manager…')}
+      />
+    )
+  }
+  if (!record || !alive) {
+    return (
+      <ManagerPageNotice
+        text={
+          record
+            ? translate(
+                'auto.components.managerAgent.pageClosed',
+                'This Manager’s chat was closed.'
+              )
+            : translate('auto.components.managerAgent.pageNone', 'No Manager here yet.')
+        }
+        action={{
+          label: record
+            ? translate('auto.components.managerAgent.restart', 'Start a new chat')
+            : translate('auto.components.managerAgent.start', 'Start Manager'),
+          run: () => void openManagerScope(scopeKey, 'unknown')
+        }}
+      />
+    )
+  }
+  return <ManagerChat record={record} />
+}
+
+function ReportsToChip({ scopeKey }: { scopeKey: ManagerScopeKey }): React.JSX.Element | null {
+  const parentKey = useAppStore((state) => {
+    const recorded = state.managerAgents[scopeKey]?.parentScopeKey
+    if (recorded) {
+      return recorded
+    }
+    // Why: before its first launch a workspace still shows the parent it would report to.
+    const scope = parseManagerScopeKey(scopeKey)
+    if (scope?.kind === 'project') {
+      return 'global'
+    }
+    if (scope?.kind === 'workspace') {
+      const projectId = projectIdForManagerWorktree(state, scope.worktreeId)
+      const projectKey = projectId ? projectManagerScopeKey(projectId) : null
+      return projectKey && state.managerAgents[projectKey] ? projectKey : 'global'
+    }
+    return null
+  })
+  const parentName = useAppStore((state) => (parentKey ? managerDisplayName(state, parentKey) : ''))
+  if (!parentKey) {
+    return null
+  }
   return (
-    <div className="flex flex-1 items-center justify-center p-4 text-sm text-muted-foreground">
-      {text}
-    </div>
+    <Button
+      variant="outline"
+      size="xs"
+      onClick={() => void openManagerScope(parentKey, 'unknown')}
+      title={translate(
+        'auto.components.managerAgent.openParent',
+        'Open the Manager this one reports to'
+      )}
+    >
+      <CornerLeftUp className="size-3" />
+      <span className="text-muted-foreground">
+        {translate('auto.components.managerAgent.reportsTo', 'Reports to')}
+      </span>
+      <span className="max-w-48 truncate">{parentName}</span>
+    </Button>
   )
 }
 
-/** Full-page Manager view: hosts the Manager's structured chat outside any tab group. */
+function ManagerPageHeader({ scopeKey }: { scopeKey: ManagerScopeKey }): React.JSX.Element {
+  const scope = parseManagerScopeKey(scopeKey)
+  // Why primitives: an object built in a selector is a new snapshot every read and loops renders.
+  const projectId = useAppStore((state) =>
+    scope?.kind === 'workspace' ? projectIdForManagerWorktree(state, scope.worktreeId) : null
+  )
+  const projectKey = projectId ? projectManagerScopeKey(projectId) : null
+  const projectLabel = useAppStore((state) =>
+    projectKey ? managerScopeLabel(state, projectKey) : ''
+  )
+  return (
+    <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-4">
+      <span className="flex items-center gap-2 text-sm font-medium">
+        <BriefcaseBusiness className="size-4 text-muted-foreground" strokeWidth={1.75} />
+        {translate('auto.components.managerAgent.sidebarLabel', 'Manager')}
+      </span>
+      <span className="text-muted-foreground">/</span>
+      {projectKey ? (
+        <>
+          <Button
+            variant="ghost"
+            size="xs"
+            onClick={() => void openManagerScope(projectKey, 'unknown')}
+          >
+            {projectLabel}
+          </Button>
+          <span className="text-muted-foreground">/</span>
+        </>
+      ) : null}
+      <ManagerScopeSwitcher scopeKey={scopeKey} />
+      <div className="ml-auto flex items-center gap-2">
+        <ReportsToChip scopeKey={scopeKey} />
+      </div>
+    </header>
+  )
+}
+
+/** Full-page Manager view: one scope's Manager chat beside a read-only overview of delegated work. */
 export default function ManagerPage(): React.JSX.Element | null {
   const enabled = useAppStore((state) => state.settings?.experimentalManagerAgent === true)
   const settingsLoaded = useAppStore((state) => state.settings !== null)
   const setActiveView = useAppStore((state) => state.setActiveView)
-  const tabId = useManagerPageTabId()
+  const scopeKey = useAppStore((state) => state.managerScope)
 
   useEffect(() => {
     if (settingsLoaded && !enabled) {
@@ -71,39 +239,18 @@ export default function ManagerPage(): React.JSX.Element | null {
     }
   }, [enabled, setActiveView, settingsLoaded])
 
-  useEffect(() => {
-    if (tabId !== null) {
-      return
-    }
-    // Why: a restart restores activeView 'manager' before anything has opened the Manager.
-    let cancelled = false
-    void window.api.ui.get().then(({ managerAgentTabId }) => {
-      if (!cancelled && managerAgentTabId) {
-        setManagerPageTabId(managerAgentTabId)
-      }
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [tabId])
-
   if (!enabled) {
     return null
   }
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
-      <header className="flex h-[36px] shrink-0 items-center gap-2 border-b border-border px-4 text-sm font-medium">
-        <BriefcaseBusiness className="size-4 text-muted-foreground" strokeWidth={1.75} />
-        {translate('auto.components.managerAgent.sidebarLabel', 'Manager')}
-      </header>
+      <ManagerPageHeader scopeKey={scopeKey} />
       <div className="flex min-h-0 flex-1">
-        {tabId ? (
-          <ManagerChat tabId={tabId} />
-        ) : (
-          <ManagerPageNotice
-            text={translate('auto.components.managerAgent.pageStarting', 'Starting the Manager…')}
-          />
-        )}
+        <div className="flex min-w-0 flex-1 flex-col">
+          {/* Why keyed: each scope is its own chat; a remount drops the previous scope's view state. */}
+          <ManagerScopeBody key={scopeKey} scopeKey={scopeKey} />
+        </div>
+        <ManagerOverviewPanel scopeKey={scopeKey} />
       </div>
     </div>
   )
