@@ -18075,7 +18075,9 @@
         "sidebarLabel": "Manager",
         "launchFailed": "Could not start the Manager.",
         "noAgent": "No installed agent is available to run the Manager.",
-        "tabTitle": "Manager"
+        "tabTitle": "Manager",
+        "pageStarting": "Starting the Manager…",
+        "pageTerminalOnly": "This Manager runs as a terminal. Open it from the floating workspace."
       }
     },
     "i18n": {

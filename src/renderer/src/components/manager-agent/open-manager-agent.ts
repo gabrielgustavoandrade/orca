@@ -18,7 +18,6 @@ import {
 import { newAgentLaunchRequestId } from '@/lib/agent-launch-request-id'
 import { launchAgentInNewTab, type LaunchAgentInNewTabResult } from '@/lib/launch-agent-in-new-tab'
 import { revealFloatingWorkspacePanel } from '@/lib/floating-workspace-panel-reveal'
-import { activateStructuredAgentSessionTab } from '@/lib/structured-agent-session-tab-activation'
 import { focusTerminalTabSurface } from '@/lib/focus-terminal-tab-surface'
 import { buildManagerAgentBrief, resolveManagerAgentCliCommand } from './manager-agent-brief'
 import {
@@ -26,6 +25,7 @@ import {
   findManagerAgentTab,
   pickManagerAgent
 } from './manager-agent-tab-resolution'
+import { getManagerPageTabId, setManagerPageTabId } from './manager-agent-page-tab'
 
 // Why bounded: detection only picks the agent; a slow host must not leave the click hanging.
 const AGENT_DETECTION_TIMEOUT_MS = 5_000
@@ -36,13 +36,20 @@ function floatingTabs(): Tab[] {
   return useAppStore.getState().unifiedTabsByWorktree[FLOATING_TERMINAL_WORKTREE_ID] ?? []
 }
 
+function showManagerPage(tabId: string | null): void {
+  setManagerPageTabId(tabId)
+  useAppStore.getState().setActiveView('manager')
+}
+
 function focusManagerAgentTab(tab: Tab): void {
   const state = useAppStore.getState()
-  revealFloatingWorkspacePanel(state)
   if (tab.contentType === 'agent-session') {
-    activateStructuredAgentSessionTab({ worktreeId: FLOATING_TERMINAL_WORKTREE_ID, tabId: tab.id })
+    // Why: the chat renders full-page in the Manager view; the floating panel stays as it was.
+    showManagerPage(tab.id)
     return
   }
+  setManagerPageTabId(tab.id)
+  revealFloatingWorkspacePanel(state)
   // Why: the floating panel renders its group's activeTabId; selecting only the worktree's
   // active terminal would leave the Manager behind another floating tab.
   state.focusGroup(FLOATING_TERMINAL_WORKTREE_ID, tab.groupId)
@@ -108,7 +115,15 @@ async function createManagerAgentChat(launchSource: LaunchSource): Promise<void>
     return
   }
   const tabIdsBefore = new Set(floatingTabs().map((tab) => tab.id))
-  revealFloatingWorkspacePanel(useAppStore.getState())
+  const viewBefore = useAppStore.getState().activeView
+  showManagerPage(null)
+  // Why: a launch that opened nothing must not strand the user on an empty Manager page.
+  const leaveEmptyManagerPage = (): void => {
+    const state = useAppStore.getState()
+    if (state.activeView === 'manager' && getManagerPageTabId() === null) {
+      state.setActiveView(viewBefore === 'manager' ? 'terminal' : viewBefore)
+    }
+  }
   const result = launchAgentInNewTab({
     requestId: newAgentLaunchRequestId(),
     agent,
@@ -119,17 +134,16 @@ async function createManagerAgentChat(launchSource: LaunchSource): Promise<void>
     activate: false
   })
   if (!result) {
+    leaveEmptyManagerPage()
     toast.error(
       translate('auto.components.managerAgent.launchFailed', 'Could not start the Manager.')
     )
     return
   }
   const tabId = await resolveLaunchedTabId(result, tabIdsBefore)
-  if (!tabId) {
-    return
-  }
-  const tab = findManagerAgentTab(floatingTabs(), tabId)
+  const tab = tabId ? findManagerAgentTab(floatingTabs(), tabId) : null
   if (!tab) {
+    leaveEmptyManagerPage()
     return
   }
   useAppStore
@@ -156,7 +170,7 @@ async function openOrCreateManagerAgentChat(launchSource: LaunchSource): Promise
   await createManagerAgentChat(launchSource)
 }
 
-/** Focuses THE Manager chat in the floating workspace, creating it with its brief if it is gone. */
+/** Shows THE Manager chat in the Manager view, creating it with its brief if it is gone. */
 export function openManagerAgent(launchSource: LaunchSource): Promise<void> {
   // Why: a second click while the first launch is settling must not start a second Manager.
   pendingOpen ??= openOrCreateManagerAgentChat(launchSource)

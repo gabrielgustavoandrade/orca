@@ -6,7 +6,6 @@ const mocks = vi.hoisted(() => ({
   state: {} as Record<string, unknown>,
   launchAgentInNewTab: vi.fn(),
   revealFloatingWorkspacePanel: vi.fn(),
-  activateStructuredAgentSessionTab: vi.fn(),
   focusTerminalTabSurface: vi.fn(),
   uiGet: vi.fn(),
   uiSet: vi.fn(),
@@ -28,14 +27,12 @@ vi.mock('@/lib/launch-agent-in-new-tab', () => ({ launchAgentInNewTab: mocks.lau
 vi.mock('@/lib/floating-workspace-panel-reveal', () => ({
   revealFloatingWorkspacePanel: mocks.revealFloatingWorkspacePanel
 }))
-vi.mock('@/lib/structured-agent-session-tab-activation', () => ({
-  activateStructuredAgentSessionTab: mocks.activateStructuredAgentSessionTab
-}))
 vi.mock('@/lib/focus-terminal-tab-surface', () => ({
   focusTerminalTabSurface: mocks.focusTerminalTabSurface
 }))
 
 import { openManagerAgent } from './open-manager-agent'
+import { getManagerPageTabId, setManagerPageTabId } from './manager-agent-page-tab'
 
 function agentTab(overrides: Partial<Tab>): Tab {
   return {
@@ -60,8 +57,13 @@ function setFloatingTabs(tabs: Tab[]): void {
 describe('openManagerAgent', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    setManagerPageTabId(null)
     mocks.state = {
       settings: { experimentalManagerAgent: true, defaultTuiAgent: 'claude' },
+      activeView: 'tasks',
+      setActiveView: vi.fn((view: string) => {
+        mocks.state.activeView = view
+      }),
       unifiedTabsByWorktree: {},
       focusGroup: vi.fn(),
       setActiveTabForWorktree: vi.fn(),
@@ -81,7 +83,7 @@ describe('openManagerAgent', () => {
     expect(mocks.launchAgentInNewTab).not.toHaveBeenCalled()
   })
 
-  it('focuses the remembered Manager chat instead of starting another', async () => {
+  it('shows the remembered Manager chat in the Manager view instead of starting another', async () => {
     const manager = agentTab({ id: 'structured-agent-session-s1', entityId: 's1' })
     setFloatingTabs([manager])
     mocks.uiGet.mockResolvedValue({ managerAgentTabId: manager.id })
@@ -89,11 +91,9 @@ describe('openManagerAgent', () => {
     await openManagerAgent('sidebar')
 
     expect(mocks.launchAgentInNewTab).not.toHaveBeenCalled()
-    expect(mocks.revealFloatingWorkspacePanel).toHaveBeenCalled()
-    expect(mocks.activateStructuredAgentSessionTab).toHaveBeenCalledWith({
-      worktreeId: FLOATING_TERMINAL_WORKTREE_ID,
-      tabId: manager.id
-    })
+    expect(mocks.revealFloatingWorkspacePanel).not.toHaveBeenCalled()
+    expect(mocks.state.activeView).toBe('manager')
+    expect(getManagerPageTabId()).toBe(manager.id)
   })
 
   it('starts a new briefed chat when the remembered tab is gone, then remembers it', async () => {
@@ -122,10 +122,9 @@ describe('openManagerAgent', () => {
       recordInteraction: false
     })
     expect(mocks.uiSet).toHaveBeenCalledWith({ managerAgentTabId: created.id })
-    expect(mocks.activateStructuredAgentSessionTab).toHaveBeenCalledWith({
-      worktreeId: FLOATING_TERMINAL_WORKTREE_ID,
-      tabId: created.id
-    })
+    expect(mocks.revealFloatingWorkspacePanel).not.toHaveBeenCalled()
+    expect(mocks.state.activeView).toBe('manager')
+    expect(getManagerPageTabId()).toBe(created.id)
   })
 
   it('remembers a terminal-backed Manager by its unified tab', async () => {
@@ -142,6 +141,7 @@ describe('openManagerAgent', () => {
       worktreeId: FLOATING_TERMINAL_WORKTREE_ID
     })
     expect(mocks.focusTerminalTabSurface).toHaveBeenCalledWith('term-1')
+    expect(mocks.revealFloatingWorkspacePanel).toHaveBeenCalled()
   })
 
   it('starts only one Manager when opened twice while the first launch settles', async () => {
@@ -161,5 +161,7 @@ describe('openManagerAgent', () => {
 
     expect(mocks.launchAgentInNewTab).toHaveBeenCalledTimes(1)
     expect(mocks.uiSet).not.toHaveBeenCalled()
+    // A launch that opened nothing returns to the view the user came from.
+    expect(mocks.state.activeView).toBe('tasks')
   })
 })

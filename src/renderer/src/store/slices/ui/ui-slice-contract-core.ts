@@ -123,6 +123,7 @@ export type UiViewHistory =
   | 'skills'
   | 'artifacts'
   | 'mobile'
+  | 'manager'
 
 export type UISliceCore = {
   sidebarOpen: boolean
