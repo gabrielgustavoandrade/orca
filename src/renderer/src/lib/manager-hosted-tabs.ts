@@ -10,9 +10,9 @@ let cachedRecords: ManagerAgentRecords | null = null
 let cachedTabIds: ReadonlySet<string> = EMPTY
 
 /**
- * Tab ids of structured Manager chats. The Manager page is their only surface, so tab strips,
- * pane overlays, palettes and bulk closes skip them. Terminal-fallback Managers stay visible:
- * no other surface can host their PTY. With the experiment off nothing is hidden.
+ * Tab ids of Manager chats and terminals. The Manager page is their only surface, so tab strips,
+ * chat overlays, palettes and bulk closes skip them; terminal overlays still mount the PTY for the
+ * page to portal. With the experiment off nothing is hidden.
  */
 export function selectManagerHostedTabIds(state: ManagerHostedTabState): ReadonlySet<string> {
   if (state.settings?.experimentalManagerAgent !== true) {
@@ -24,8 +24,8 @@ export function selectManagerHostedTabIds(state: ManagerHostedTabState): Readonl
   }
   const ids = new Set<string>()
   for (const record of Object.values(records ?? {})) {
+    ids.add(record.tabId)
     if (record.sessionId) {
-      ids.add(record.tabId)
       ids.add(structuredAgentSessionTabId(record.sessionId))
     }
   }

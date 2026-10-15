@@ -69,8 +69,12 @@ export function renderFloatingTerminalPanelSurface({
   setOrchestrationDialogOpen,
   previewUserBounds,
   orchestrationDialogOpen,
-  refreshOrchestrationSetupVisibility
-}: ReturnType<typeof useFloatingTerminalPanelController>): React.JSX.Element {
+  refreshOrchestrationSetupVisibility,
+  terminalMountTabIds
+}: ReturnType<typeof useFloatingTerminalPanelController> & {
+  /** Null mounts every terminal; otherwise only these (the Manager page owns its own). */
+  terminalMountTabIds: ReadonlySet<string> | null
+}): React.JSX.Element {
   return (
     // Why: sit above the z-40 notification cards so the floating workspace is
     // never buried behind them, but stay under the z-50 modal layer so its own
@@ -237,7 +241,7 @@ export function renderFloatingTerminalPanelSurface({
                     shouldColdParkTerminalPanes={false}
                     isForceParked={false}
                     activityTerminalPortals={NO_ACTIVITY_TERMINAL_PORTALS}
-                    backgroundMountTabIds={null}
+                    backgroundMountTabIds={terminalMountTabIds}
                     activationDeferredMountTabIds={null}
                     mountRetainedBrowserOverlay={true}
                     mountEmulatorOverlay={true}

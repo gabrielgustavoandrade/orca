@@ -21,8 +21,15 @@ import {
 } from '@/lib/agent-detection-target-inventory'
 import { newAgentLaunchRequestId } from '@/lib/agent-launch-request-id'
 import { launchAgentInNewTab, type LaunchAgentInNewTabResult } from '@/lib/launch-agent-in-new-tab'
-import { activateAndRevealWorktree } from '@/lib/worktree-activation'
-import { focusTerminalTabSurface } from '@/lib/focus-terminal-tab-surface'
+import { adoptAgentSessionLaunchVerdict } from '@/lib/agent-session-launch-plan'
+import { resolveAgentLaunchExecutionContext } from '@/lib/launch-agent-execution-context'
+import { resolveStartupShell } from '@/lib/tui-agent-startup'
+import { resolveTuiAgentLaunchArgs } from '../../../../shared/tui-agent-launch-defaults'
+import { TUI_AGENT_CONFIG } from '../../../../shared/tui-agent-config'
+import {
+  resolveManagerAgentSurface,
+  type ManagerAgentSurface
+} from '../../../../shared/agent-oversight-experimental-settings'
 import {
   buildManagerAgentBrief,
   MANAGER_AGENT_BRIEF_VERSION,
@@ -36,6 +43,7 @@ import {
 } from './manager-agent-tab-resolution'
 import { resolveDefaultParentScopeKey, resolveManagerHostWorktreeId } from './manager-agent-scope'
 import { setManagerScopeLaunching } from './manager-agent-launch-state'
+import { planManagerAgentBriefDelivery } from './manager-agent-brief-delivery'
 
 // Why bounded: detection only picks the agent; a slow host must not leave the click hanging.
 const AGENT_DETECTION_TIMEOUT_MS = 5_000
@@ -60,23 +68,6 @@ export function findManagerRecordTab(
   return record
     ? findManagerAgentTab(tabsByWorktree[record.hostWorktreeId] ?? [], record.tabId)
     : null
-}
-
-/** Shows a terminal-fallback Manager where its PTY lives; the Manager page cannot host it. */
-export function revealTerminalManager(record: ManagerAgentRecord): void {
-  const state = useAppStore.getState()
-  const tab = findManagerRecordTab(state.unifiedTabsByWorktree, record)
-  if (!tab || tab.contentType !== 'terminal') {
-    return
-  }
-  const worktreeId = record.hostWorktreeId
-  // Why: the floating workspace reveals its panel here; any other host becomes the active worktree.
-  activateAndRevealWorktree(worktreeId)
-  state.focusGroup(worktreeId, tab.groupId)
-  state.setActiveTabForWorktree(worktreeId, tab.entityId)
-  state.activateTab(tab.id, { worktreeId })
-  state.setActiveTabType('terminal', worktreeId)
-  focusTerminalTabSurface(tab.entityId)
 }
 
 async function detectAgents(worktreeId: string): Promise<TuiAgent[]> {
@@ -117,8 +108,59 @@ async function resolveLaunchedTabId(
   return null
 }
 
-async function createManagerAgentChat(
+type ManagerLaunch = Pick<
+  Parameters<typeof launchAgentInNewTab>[0],
+  'prompt' | 'agentArgs' | 'promptDelivery'
+> &
+  ({ requestId: ReturnType<typeof newAgentLaunchRequestId> } | {
+    agentSessionLaunchPlan: ReturnType<typeof adoptAgentSessionLaunchVerdict>
+  })
+
+/** The route and brief delivery for a Manager on this surface; null when the host is unknown. */
+function planManagerLaunch(
+  surface: ManagerAgentSurface,
+  agent: TuiAgent,
+  hostWorktreeId: string,
+  brief: string
+): ManagerLaunch | null {
+  const state = useAppStore.getState()
+  const requestId = newAgentLaunchRequestId()
+  if (surface === 'chat') {
+    // Why first-message: structured launches have no hidden-instruction channel for any agent yet.
+    return { requestId, prompt: brief }
+  }
+  // Why: the context already told the user why an unknown host cannot launch.
+  const context = resolveAgentLaunchExecutionContext(state, { worktreeId: hostWorktreeId })
+  if (!context) {
+    return null
+  }
+  const delivery = planManagerAgentBriefDelivery({
+    agent,
+    surface,
+    brief,
+    shell: resolveStartupShell(context.resolvedLaunchPlatform, context.queuedShell),
+    defaultAgentArgs: resolveTuiAgentLaunchArgs(agent, state.settings?.agentDefaultArgs)
+  })
+  return {
+    // Why a terminal verdict: the agent's own CLI must run even when Chat UI is on.
+    agentSessionLaunchPlan: adoptAgentSessionLaunchVerdict({
+      route: 'terminal-tui',
+      requestId,
+      agent,
+      worktreeId: hostWorktreeId
+    }),
+    prompt: delivery.prompt,
+    ...(delivery.agentArgs !== undefined ? { agentArgs: delivery.agentArgs } : {}),
+    // Why: a followup-path CLI would otherwise get the brief pasted but never sent.
+    ...(TUI_AGENT_CONFIG[agent].promptInjectionMode === 'stdin-after-start'
+      ? { promptDelivery: 'submit-after-ready' as const }
+      : {})
+  }
+}
+
+async function createManagerAgent(
   scopeKey: ManagerScopeKey,
+  surface: ManagerAgentSurface,
   launchSource: LaunchSource
 ): Promise<void> {
   const state = useAppStore.getState()
@@ -133,6 +175,7 @@ async function createManagerAgentChat(
     return
   }
   const agent = pickManagerAgent({
+    surface,
     defaultTuiAgent: state.settings?.defaultTuiAgent,
     detected: await detectAgents(hostWorktreeId),
     disabled: state.settings?.disabledTuiAgents
@@ -153,13 +196,16 @@ async function createManagerAgentChat(
     launchFailed()
     return
   }
+  const brief = buildManagerAgentBrief(resolveManagerAgentCliCommand(import.meta.env.DEV), briefScope)
+  const launch = planManagerLaunch(surface, agent, hostWorktreeId, brief)
+  if (!launch) {
+    return
+  }
   const tabIdsBefore = new Set(hostTabs(hostWorktreeId).map((tab) => tab.id))
-  // Why first-message: structured launches have no hidden-instruction channel for any agent yet.
   const result = launchAgentInNewTab({
-    requestId: newAgentLaunchRequestId(),
+    ...launch,
     agent,
     worktreeId: hostWorktreeId,
-    prompt: buildManagerAgentBrief(resolveManagerAgentCliCommand(import.meta.env.DEV), briefScope),
     launchSource,
     // Why: a Manager must not take the main window's tab selection in its host workspace.
     activate: false
@@ -174,10 +220,13 @@ async function createManagerAgentChat(
     return
   }
   const after = useAppStore.getState()
+  // Why from the tab: a chat the host declined opened as a terminal, which the page hosts too.
+  const isChat = tab.contentType === 'agent-session'
   after.setManagerAgentRecord({
     scopeKey,
     tabId: tab.id,
-    ...(tab.contentType === 'agent-session' ? { sessionId: tab.entityId } : {}),
+    ...(isChat ? { sessionId: tab.entityId } : {}),
+    surface: isChat ? 'chat' : 'terminal',
     agent,
     hostWorktreeId,
     ...(parentScopeKey ? { parentScopeKey } : {}),
@@ -186,15 +235,16 @@ async function createManagerAgentChat(
   })
   const promptName = managerAgentPromptName(after, scopeKey)
   after.setTabCustomTitle(
-    tab.contentType === 'terminal' ? tab.entityId : tab.id,
+    isChat ? tab.id : tab.entityId,
     promptName.charAt(0).toUpperCase() + promptName.slice(1),
     { recordInteraction: false }
   )
 }
 
-async function openOrCreateManagerAgentChat(
+async function openOrCreateManagerAgent(
   scopeKey: ManagerScopeKey,
-  launchSource: LaunchSource
+  launchSource: LaunchSource,
+  replaceLive: boolean
 ): Promise<void> {
   const state = useAppStore.getState()
   if (state.settings?.experimentalManagerAgent !== true) {
@@ -202,24 +252,24 @@ async function openOrCreateManagerAgentChat(
   }
   state.setManagerScope(scopeKey)
   state.setActiveView('manager')
-  if (findManagerRecordTab(state.unifiedTabsByWorktree, state.managerAgents[scopeKey])) {
+  if (
+    !replaceLive &&
+    findManagerRecordTab(state.unifiedTabsByWorktree, state.managerAgents[scopeKey])
+  ) {
     return
   }
   setManagerScopeLaunching(scopeKey, true)
   try {
-    await createManagerAgentChat(scopeKey, launchSource)
+    await createManagerAgent(scopeKey, resolveManagerAgentSurface(state.settings), launchSource)
   } finally {
     setManagerScopeLaunching(scopeKey, false)
   }
 }
 
-/**
- * Shows a scope's Manager on the Manager page, starting it with its brief when it has none or
- * its chat is gone. Resume is not attempted: a gone chat is replaced by a fresh one.
- */
-export function openManagerScope(
+function runManagerOpen(
   scopeKey: ManagerScopeKey,
-  launchSource: LaunchSource
+  launchSource: LaunchSource,
+  replaceLive: boolean
 ): Promise<void> {
   const pending = pendingOpens.get(scopeKey)
   if (pending) {
@@ -228,7 +278,7 @@ export function openManagerScope(
     return pending
   }
   // Why: a second click while the first launch is settling must not start a second Manager.
-  const open = openOrCreateManagerAgentChat(scopeKey, launchSource)
+  const open = openOrCreateManagerAgent(scopeKey, launchSource, replaceLive)
     .catch((error) => {
       console.error('Failed to open the Manager', error)
       launchFailed()
@@ -238,6 +288,28 @@ export function openManagerScope(
     })
   pendingOpens.set(scopeKey, open)
   return open
+}
+
+/**
+ * Shows a scope's Manager on the Manager page, starting it with its brief when it has none or
+ * its tab is gone. Resume is not attempted: a gone Manager is replaced by a fresh one.
+ */
+export function openManagerScope(
+  scopeKey: ManagerScopeKey,
+  launchSource: LaunchSource
+): Promise<void> {
+  return runManagerOpen(scopeKey, launchSource, false)
+}
+
+/**
+ * Starts a new Manager on the surface the settings pick and replaces the scope's record. The old
+ * tab is left open, now visible in its workspace, so its running work is never killed silently.
+ */
+export function startNewManagerForScope(
+  scopeKey: ManagerScopeKey,
+  launchSource: LaunchSource
+): Promise<void> {
+  return runManagerOpen(scopeKey, launchSource, true)
 }
 
 /** Opens the all-projects Manager. */

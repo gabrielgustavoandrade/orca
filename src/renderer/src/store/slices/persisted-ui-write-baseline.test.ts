@@ -141,6 +141,7 @@ describe('managerAgents write round-trip', () => {
       scopeKey: 'global' as const,
       tabId: 'structured-agent-session-s1',
       sessionId: 's1',
+      surface: 'chat' as const,
       agent: 'claude' as const,
       hostWorktreeId: 'global-floating-terminal',
       briefVersion: 2,

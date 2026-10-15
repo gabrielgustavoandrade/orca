@@ -1,5 +1,6 @@
 import type { Tab } from '../../../../shared/tab-types'
 import type { TuiAgent } from '../../../../shared/tui-agent'
+import type { ManagerAgentSurface } from '../../../../shared/agent-oversight-experimental-settings'
 import { isAgentSessionHandleProvider } from '../../../../shared/agent-session-provider-handle'
 import { pickTuiAgent } from '../../../../shared/tui-agent-selection'
 
@@ -37,11 +38,12 @@ export function findAddedManagerAgentTab<T extends ManagerAgentTab>(
 }
 
 /**
- * A chat-capable agent backs the Manager, because only a chat can render on the Manager page:
- * the user's default when it can chat, else the first installed chat-capable agent. Only when
- * none can chat does it fall back to the default, then any installed agent, as a terminal.
+ * The agent for a new Manager. A terminal Manager runs any CLI: the user's default when it is
+ * installed, else the first detected. A chat Manager prefers chat-capable agents: the default when
+ * it can chat, else the first chat-capable one, then the default and any agent as a terminal.
  */
 export function pickManagerAgent(args: {
+  surface: ManagerAgentSurface
   defaultTuiAgent: TuiAgent | 'blank' | null | undefined
   detected: readonly TuiAgent[]
   disabled?: readonly unknown[] | null
@@ -49,13 +51,17 @@ export function pickManagerAgent(args: {
   const preferred = args.defaultTuiAgent === 'blank' ? null : args.defaultTuiAgent
   const usable = (agent: TuiAgent): boolean =>
     args.detected.includes(agent) && pickTuiAgent(agent, [agent], args.disabled) !== null
+  const usablePreferred = preferred && usable(preferred) ? preferred : null
+  if (args.surface === 'terminal') {
+    return usablePreferred ?? pickTuiAgent(null, args.detected, args.disabled)
+  }
   const chatCapable = args.detected.filter((agent) => isAgentSessionHandleProvider(agent))
-  if (preferred && usable(preferred) && chatCapable.includes(preferred)) {
-    return preferred
+  if (usablePreferred && chatCapable.includes(usablePreferred)) {
+    return usablePreferred
   }
   return (
     pickTuiAgent(null, chatCapable, args.disabled) ??
-    (preferred && usable(preferred) ? preferred : null) ??
+    usablePreferred ??
     pickTuiAgent(null, args.detected, args.disabled)
   )
 }

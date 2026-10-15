@@ -50,6 +50,7 @@ describe('hydrateManagerAgentRecords', () => {
         scopeKey: 'global',
         tabId: structuredAgentSessionTabId('s1'),
         sessionId: 's1',
+        surface: 'chat',
         agent: null,
         hostWorktreeId: FLOATING,
         briefVersion: 0,
@@ -61,6 +62,7 @@ describe('hydrateManagerAgentRecords', () => {
   it('migrates a v1 terminal Manager without a session id', () => {
     expect(hydrateManagerAgentRecords({}, 'term-1', FLOATING).global).toMatchObject({
       tabId: 'term-1',
+      surface: 'terminal',
       hostWorktreeId: FLOATING
     })
     expect(hydrateManagerAgentRecords({}, 'term-1', FLOATING).global).not.toHaveProperty(
@@ -73,6 +75,7 @@ describe('hydrateManagerAgentRecords', () => {
       scopeKey: 'global',
       tabId: 'structured-agent-session-new',
       sessionId: 'new',
+      surface: 'chat',
       agent: 'claude',
       hostWorktreeId: FLOATING,
       briefVersion: 2,
@@ -106,11 +109,32 @@ describe('hydrateManagerAgentRecords', () => {
     expect(records['project:p1']).toEqual({
       scopeKey: 'project:p1',
       tabId: 't',
+      surface: 'terminal',
       agent: null,
       hostWorktreeId: 'w1',
       briefVersion: 0,
       createdAt: 0
     })
+  })
+
+  it('derives the surface of records saved before surfaces existed, and keeps a saved one', () => {
+    const records = hydrateManagerAgentRecords(
+      {
+        global: { scopeKey: 'global', tabId: 'structured-agent-session-s', sessionId: 's', hostWorktreeId: FLOATING },
+        'workspace:w1': { scopeKey: 'workspace:w1', tabId: 'term', hostWorktreeId: 'w1' },
+        'workspace:w2': {
+          scopeKey: 'workspace:w2',
+          tabId: 'term-2',
+          surface: 'chat',
+          hostWorktreeId: 'w2'
+        }
+      },
+      null,
+      FLOATING
+    )
+    expect(records.global.surface).toBe('chat')
+    expect(records['workspace:w1'].surface).toBe('terminal')
+    expect(records['workspace:w2'].surface).toBe('chat')
   })
 
   it('returns no records when nothing was ever saved', () => {

@@ -16,6 +16,7 @@ function record(scopeKey: ManagerAgentRecord['scopeKey']): ManagerAgentRecord {
   return {
     scopeKey,
     tabId: `tab-${scopeKey}`,
+    surface: 'terminal',
     agent: 'claude',
     hostWorktreeId: 'orca-main',
     briefVersion: 2,

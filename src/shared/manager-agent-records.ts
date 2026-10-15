@@ -1,6 +1,7 @@
 import type { TuiAgent } from './tui-agent'
 import { isTuiAgent } from './tui-agent-config'
 import { structuredAgentSessionTabId } from './structured-agent-session-projection'
+import type { ManagerAgentSurface } from './agent-oversight-experimental-settings'
 
 /** Which slice of the user's work a Manager owns: everything, one project, or one workspace. */
 export type ManagerScopeKey = 'global' | `project:${string}` | `workspace:${string}`
@@ -14,8 +15,10 @@ export type ManagerAgentRecord = {
   scopeKey: ManagerScopeKey
   /** Unified tab id of the Manager's chat in its host worktree. */
   tabId: string
-  /** Structured session id; absent for a terminal-fallback Manager. */
+  /** Structured session id; absent for a terminal Manager. */
   sessionId?: string
+  /** What the Manager runs in; fixed for the record's life, a switch starts a new Manager. */
+  surface: ManagerAgentSurface
   /** Null only for a record migrated from v1, which never stored its agent. */
   agent: TuiAgent | null
   hostWorktreeId: string
@@ -80,10 +83,18 @@ function sanitizeManagerAgentRecord(key: string, value: unknown): ManagerAgentRe
   ) {
     return null
   }
+  const sessionId = typeof raw.sessionId === 'string' && raw.sessionId ? raw.sessionId : null
   return {
     scopeKey: key,
     tabId: raw.tabId,
-    ...(typeof raw.sessionId === 'string' && raw.sessionId ? { sessionId: raw.sessionId } : {}),
+    ...(sessionId ? { sessionId } : {}),
+    // Why: records before surfaces existed were chats when they held a session, else terminals.
+    surface:
+      raw.surface === 'chat' || raw.surface === 'terminal'
+        ? raw.surface
+        : sessionId
+          ? 'chat'
+          : 'terminal',
     agent: isTuiAgent(raw.agent) ? raw.agent : null,
     hostWorktreeId: raw.hostWorktreeId,
     ...(isManagerScopeKey(raw.parentScopeKey) && raw.parentScopeKey !== key
@@ -118,6 +129,7 @@ export function hydrateManagerAgentRecords(
       scopeKey: 'global',
       tabId: legacyGlobalTabId,
       ...(sessionId ? { sessionId } : {}),
+      surface: sessionId ? 'chat' : 'terminal',
       agent: null,
       hostWorktreeId: floatingWorktreeId,
       // Why 0: v1 briefs predate scope briefs, so the record reads as outdated.

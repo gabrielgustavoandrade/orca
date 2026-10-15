@@ -173,7 +173,14 @@ describe('manager overview data', () => {
 })
 
 describe('buildManagerTree', () => {
-  const base = { tabId: 't', agent: null, hostWorktreeId: 'h', briefVersion: 2, createdAt: 0 }
+  const base = {
+    tabId: 't',
+    surface: 'terminal' as const,
+    agent: null,
+    hostWorktreeId: 'h',
+    briefVersion: 2,
+    createdAt: 0
+  }
   it('nests managers under the parent they report to', () => {
     const tree = buildManagerTree([
       { ...base, scopeKey: 'workspace:w1', parentScopeKey: 'project:p1' },

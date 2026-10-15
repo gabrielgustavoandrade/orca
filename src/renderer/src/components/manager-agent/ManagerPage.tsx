@@ -3,6 +3,7 @@ import { BriefcaseBusiness, CornerLeftUp } from 'lucide-react'
 import { useAppStore } from '@/store'
 import { translate } from '@/i18n/i18n'
 import { Button } from '@/components/ui/button'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import {
   structuredAgentSessionOwnerForTab,
   structuredAgentSessionTargetForHost
@@ -16,7 +17,16 @@ import {
   type ManagerAgentRecord,
   type ManagerScopeKey
 } from '../../../../shared/manager-agent-records'
-import { findManagerRecordTab, openManagerScope, revealTerminalManager } from './open-manager-agent'
+import {
+  resolveManagerAgentSurface,
+  type ManagerAgentSurface
+} from '../../../../shared/agent-oversight-experimental-settings'
+import {
+  findManagerRecordTab,
+  openManagerScope,
+  startNewManagerForScope
+} from './open-manager-agent'
+import { ManagerTerminalSurface } from './ManagerTerminalSurface'
 import { useManagerScopeLaunching } from './manager-agent-launch-state'
 import { ManagerScopeSwitcher } from './ManagerScopeSwitcher'
 import { ManagerOverviewPanel } from './ManagerOverviewPanel'
@@ -60,7 +70,7 @@ function ManagerPageNotice({
   )
 }
 
-function ManagerChat({ record }: { record: ManagerAgentRecord }): React.JSX.Element {
+function ManagerSurface({ record }: { record: ManagerAgentRecord }): React.JSX.Element {
   const tab = useAppStore((state) => findManagerRecordTab(state.unifiedTabsByWorktree, record))
   const owner = useAppStore((state) => (tab ? structuredAgentSessionOwnerForTab(state, tab) : null))
   const target = useMemo(() => structuredAgentSessionTargetForHost(owner), [owner])
@@ -72,18 +82,13 @@ function ManagerChat({ record }: { record: ManagerAgentRecord }): React.JSX.Elem
       />
     )
   }
+  if (tab.contentType === 'terminal') {
+    return <ManagerTerminalSurface record={record} tab={tab} />
+  }
   if (!isStructuredTab(tab) || !tab.agentSessionAgent) {
-    // Why: a terminal-fallback Manager's PTY belongs to its host workspace; this page cannot host it.
     return (
       <ManagerPageNotice
-        text={translate(
-          'auto.components.managerAgent.pageTerminalOnly',
-          'This Manager runs as a terminal in its workspace.'
-        )}
-        action={{
-          label: translate('auto.components.managerAgent.openTerminal', 'Open terminal'),
-          run: () => revealTerminalManager(record)
-        }}
+        text={translate('auto.components.managerAgent.pageStarting', 'Starting the Manager…')}
       />
     )
   }
@@ -112,6 +117,73 @@ function ManagerChat({ record }: { record: ManagerAgentRecord }): React.JSX.Elem
   )
 }
 
+function surfaceLabel(surface: ManagerAgentSurface): string {
+  return surface === 'chat'
+    ? translate('auto.components.managerAgent.surfaceChat', 'Chat UI')
+    : translate('auto.components.managerAgent.surfaceTerminal', 'Terminal')
+}
+
+/** Shown when the setting changed after this Manager started; a running Manager is not converted. */
+function SurfaceMismatchNotice({
+  scopeKey,
+  recordSurface
+}: {
+  scopeKey: ManagerScopeKey
+  recordSurface: ManagerAgentSurface
+}): React.JSX.Element | null {
+  const surface = useAppStore((state) => resolveManagerAgentSurface(state.settings))
+  if (surface === recordSurface) {
+    return null
+  }
+  return (
+    <div className="flex shrink-0 items-center gap-3 border-b border-border bg-muted/40 px-4 py-2 text-xs text-muted-foreground">
+      <span className="min-w-0 flex-1">
+        {translate(
+          'auto.components.managerAgent.surfaceMismatch',
+          'This Manager runs in {{value0}}. New Managers open in {{value1}}. Starting one leaves this one open in its workspace.',
+          { value0: surfaceLabel(recordSurface), value1: surfaceLabel(surface) }
+        )}
+      </span>
+      <Button
+        variant="outline"
+        size="xs"
+        onClick={() => void startNewManagerForScope(scopeKey, 'unknown')}
+      >
+        {surface === 'chat'
+          ? translate('auto.components.managerAgent.startChatManager', 'Start a new Chat UI Manager')
+          : translate(
+              'auto.components.managerAgent.startTerminalManager',
+              'Start a new Terminal Manager'
+            )}
+      </Button>
+    </div>
+  )
+}
+
+function ManagerSurfaceToggle(): React.JSX.Element {
+  const surface = useAppStore((state) => resolveManagerAgentSurface(state.settings))
+  const updateSettings = useAppStore((state) => state.updateSettings)
+  return (
+    <ToggleGroup
+      type="single"
+      size="xs"
+      variant="outline"
+      value={surface}
+      onValueChange={(next) => {
+        // Why: pressing the selected item again would clear it; one surface is always picked.
+        if (next === 'terminal' || next === 'chat') {
+          void updateSettings({ managerAgentSurface: next })
+        }
+      }}
+      aria-label={translate('auto.components.managerAgent.surfaceToggle', 'New Managers open in')}
+      title={translate('auto.components.managerAgent.surfaceToggle', 'New Managers open in')}
+    >
+      <ToggleGroupItem value="terminal">{surfaceLabel('terminal')}</ToggleGroupItem>
+      <ToggleGroupItem value="chat">{surfaceLabel('chat')}</ToggleGroupItem>
+    </ToggleGroup>
+  )
+}
+
 function ManagerScopeBody({ scopeKey }: { scopeKey: ManagerScopeKey }): React.JSX.Element {
   const record = useAppStore((state) => state.managerAgents[scopeKey])
   const alive = useAppStore(
@@ -130,22 +202,24 @@ function ManagerScopeBody({ scopeKey }: { scopeKey: ManagerScopeKey }): React.JS
       <ManagerPageNotice
         text={
           record
-            ? translate(
-                'auto.components.managerAgent.pageClosed',
-                'This Manager’s chat was closed.'
-              )
+            ? translate('auto.components.managerAgent.pageClosed', 'This Manager was closed.')
             : translate('auto.components.managerAgent.pageNone', 'No Manager here yet.')
         }
         action={{
           label: record
-            ? translate('auto.components.managerAgent.restart', 'Start a new chat')
+            ? translate('auto.components.managerAgent.restart', 'Start a new Manager')
             : translate('auto.components.managerAgent.start', 'Start Manager'),
           run: () => void openManagerScope(scopeKey, 'unknown')
         }}
       />
     )
   }
-  return <ManagerChat record={record} />
+  return (
+    <>
+      <SurfaceMismatchNotice scopeKey={scopeKey} recordSurface={record.surface} />
+      <ManagerSurface record={record} />
+    </>
+  )
 }
 
 function ReportsToChip({ scopeKey }: { scopeKey: ManagerScopeKey }): React.JSX.Element | null {
@@ -220,13 +294,14 @@ function ManagerPageHeader({ scopeKey }: { scopeKey: ManagerScopeKey }): React.J
       ) : null}
       <ManagerScopeSwitcher scopeKey={scopeKey} />
       <div className="ml-auto flex items-center gap-2">
+        <ManagerSurfaceToggle />
         <ReportsToChip scopeKey={scopeKey} />
       </div>
     </header>
   )
 }
 
-/** Full-page Manager view: one scope's Manager chat beside a read-only overview of delegated work. */
+/** Full-page Manager view: one scope's Manager terminal or chat beside a read-only overview of delegated work. */
 export default function ManagerPage(): React.JSX.Element | null {
   const enabled = useAppStore((state) => state.settings?.experimentalManagerAgent === true)
   const settingsLoaded = useAppStore((state) => state.settings !== null)
@@ -247,7 +322,7 @@ export default function ManagerPage(): React.JSX.Element | null {
       <ManagerPageHeader scopeKey={scopeKey} />
       <div className="flex min-h-0 flex-1">
         <div className="flex min-w-0 flex-1 flex-col">
-          {/* Why keyed: each scope is its own chat; a remount drops the previous scope's view state. */}
+          {/* Why keyed: each scope is its own Manager; a remount drops the previous scope's view state. */}
           <ManagerScopeBody key={scopeKey} scopeKey={scopeKey} />
         </div>
         <ManagerOverviewPanel scopeKey={scopeKey} />

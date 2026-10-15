@@ -61,8 +61,10 @@ export function useTerminalWorkspaceStoreBindings(controller: TerminalWorkspaceF
   const tabBarOrder = renderedActiveWorktreeId
     ? tabBarOrderByWorktree[renderedActiveWorktreeId]
     : undefined
+  // Why both pages: each publishes targets only while it is the mounted page and clears them on
+  // unmount, so Activity and the Manager never hold targets at once.
   const activityTerminalPortals: ActivityTerminalPortalTarget[] = useActivityTerminalPortals(
-    activeView === 'activity'
+    activeView === 'activity' || activeView === 'manager'
   )
 
   return {

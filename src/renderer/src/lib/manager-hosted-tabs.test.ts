@@ -7,6 +7,7 @@ import { structuredAgentSessionTabId } from '../../../shared/structured-agent-se
 import { isManagerHostedTab, selectManagerHostedTabIds } from './manager-hosted-tabs'
 import { selectFloatingVisibleTabCount } from '@/store/floating-workspace-panel-selector'
 import { resolveFloatingWorkspaceSurfaceModel } from '@/components/floating-terminal/floating-workspace-surface-model'
+import { selectFloatingPanelTerminalMountKey } from '@/components/manager-agent/use-floating-panel-terminal-mounts'
 import {
   nextVisibleGroupTabId,
   repairManagerHostedActiveTabs
@@ -25,6 +26,7 @@ const records: ManagerAgentRecords = {
     scopeKey: 'global',
     tabId: MANAGER_TAB,
     sessionId: 's1',
+    surface: 'chat',
     agent: 'claude',
     hostWorktreeId: FLOATING_TERMINAL_WORKTREE_ID,
     briefVersion: 2,
@@ -33,6 +35,7 @@ const records: ManagerAgentRecords = {
   'workspace:w1': {
     scopeKey: 'workspace:w1',
     tabId: 'term-manager',
+    surface: 'terminal',
     agent: 'aider',
     hostWorktreeId: 'w1',
     briefVersion: 2,
@@ -61,11 +64,11 @@ function group(overrides: Partial<TabGroup>): TabGroup {
 }
 
 describe('selectManagerHostedTabIds', () => {
-  it('hides structured Manager chats only, and nothing while the experiment is off', () => {
+  it('hides Manager chats and terminals, and nothing while the experiment is off', () => {
     const on = { managerAgents: records, settings: settings(ON) }
     expect(isManagerHostedTab(on, MANAGER_TAB)).toBe(true)
-    // A terminal-fallback Manager stays reachable in its workspace.
-    expect(isManagerHostedTab(on, 'term-manager')).toBe(false)
+    // The page portals terminal Managers too, so they leave the tab strips.
+    expect(isManagerHostedTab(on, 'term-manager')).toBe(true)
     expect(
       isManagerHostedTab({ managerAgents: records, settings: settings({}) }, MANAGER_TAB)
     ).toBe(false)
@@ -160,9 +163,51 @@ describe('repairManagerHostedActiveTabs', () => {
     expect(state.createTab).toHaveBeenCalledWith('w1')
   })
 
+  it('gives the active workspace a terminal when its only tab is a Manager terminal', () => {
+    const managerTerminal = tab('term-manager', 'w1', { contentType: 'terminal', entityId: 'pty-tab' })
+    const state = {
+      ...repairState([managerTerminal], 'term-manager'),
+      managerAgents: { 'workspace:w1': records['workspace:w1'] }
+    }
+    repairManagerHostedActiveTabs(state, 'w1')
+    expect(state.createTab).toHaveBeenCalledWith('w1')
+  })
+
   it('leaves a background workspace alone until the user opens it', () => {
     const state = repairState([tab(MANAGER_TAB, 'w1')], MANAGER_TAB, false)
     repairManagerHostedActiveTabs(state, 'w1')
     expect(state.createTab).not.toHaveBeenCalled()
+  })
+})
+
+describe('selectFloatingPanelTerminalMountKey', () => {
+  const floatingTabs = (ids: string[]) => ids.map((id) => ({ id }))
+  const managerTerminal = tab(MANAGER_TAB, FLOATING_TERMINAL_WORKTREE_ID, {
+    contentType: 'terminal',
+    entityId: 'term-manager-pty'
+  })
+
+  it('lets the panel mount everything while no Manager terminal lives there', () => {
+    expect(
+      selectFloatingPanelTerminalMountKey({
+        managerAgents: records,
+        settings: settings(ON),
+        unifiedTabsByWorktree: { [FLOATING_TERMINAL_WORKTREE_ID]: [tab(MANAGER_TAB, 'x')] },
+        tabsByWorktree: {}
+      })
+    ).toBeNull()
+  })
+
+  it('keeps the Manager page terminal out of the floating panel', () => {
+    expect(
+      selectFloatingPanelTerminalMountKey({
+        managerAgents: records,
+        settings: settings(ON),
+        unifiedTabsByWorktree: { [FLOATING_TERMINAL_WORKTREE_ID]: [managerTerminal] },
+        tabsByWorktree: {
+          [FLOATING_TERMINAL_WORKTREE_ID]: floatingTabs(['term-manager-pty', 'scratch'])
+        }
+      })
+    ).toBe('scratch')
   })
 })

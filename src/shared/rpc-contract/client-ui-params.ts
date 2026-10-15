@@ -24,6 +24,8 @@ const ManagerAgentRecordSchema = z.object({
   scopeKey: z.custom<ManagerScopeKey>(isManagerScopeKey),
   tabId: z.string(),
   sessionId: z.string().optional(),
+  // Why optional: older peers send records without it; hydration derives it from sessionId.
+  surface: z.enum(['terminal', 'chat']).optional(),
   agent: z.custom<TuiAgent>(isTuiAgent).nullable(),
   hostWorktreeId: z.string(),
   parentScopeKey: z.custom<ManagerScopeKey>(isManagerScopeKey).optional(),

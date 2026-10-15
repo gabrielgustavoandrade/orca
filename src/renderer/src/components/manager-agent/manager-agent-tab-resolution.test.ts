@@ -51,28 +51,29 @@ describe('findAddedManagerAgentTab', () => {
   })
 })
 
-describe('pickManagerAgent', () => {
+describe('pickManagerAgent for a chat', () => {
   it('uses the default agent when it is installed, enabled and can open as a chat', () => {
-    expect(pickManagerAgent({ defaultTuiAgent: 'codex', detected: ['claude', 'codex'] })).toBe(
+    expect(pickManagerAgent({ surface: 'chat', defaultTuiAgent: 'codex', detected: ['claude', 'codex'] })).toBe(
       'codex'
     )
   })
 
   it('prefers a chat-capable agent over a default that can only run as a terminal', () => {
-    expect(pickManagerAgent({ defaultTuiAgent: 'gemini', detected: ['claude', 'gemini'] })).toBe(
+    expect(pickManagerAgent({ surface: 'chat', defaultTuiAgent: 'gemini', detected: ['claude', 'gemini'] })).toBe(
       'claude'
     )
   })
 
   it('falls back to an installed chat-capable agent', () => {
-    expect(pickManagerAgent({ defaultTuiAgent: 'blank', detected: ['gemini', 'codex'] })).toBe(
+    expect(pickManagerAgent({ surface: 'chat', defaultTuiAgent: 'blank', detected: ['gemini', 'codex'] })).toBe(
       'codex'
     )
-    expect(pickManagerAgent({ defaultTuiAgent: 'aider', detected: ['gemini', 'codex'] })).toBe(
+    expect(pickManagerAgent({ surface: 'chat', defaultTuiAgent: 'aider', detected: ['gemini', 'codex'] })).toBe(
       'codex'
     )
     expect(
       pickManagerAgent({
+        surface: 'chat',
         defaultTuiAgent: 'gemini',
         detected: ['gemini', 'claude'],
         disabled: ['gemini']
@@ -81,10 +82,33 @@ describe('pickManagerAgent', () => {
   })
 
   it('falls back to the terminal-only default, then any installed agent, then none', () => {
-    expect(pickManagerAgent({ defaultTuiAgent: 'aider', detected: ['gemini', 'aider'] })).toBe(
+    expect(pickManagerAgent({ surface: 'chat', defaultTuiAgent: 'aider', detected: ['gemini', 'aider'] })).toBe(
       'aider'
     )
-    expect(pickManagerAgent({ defaultTuiAgent: null, detected: ['gemini'] })).toBe('gemini')
-    expect(pickManagerAgent({ defaultTuiAgent: 'claude', detected: [] })).toBeNull()
+    expect(pickManagerAgent({ surface: 'chat', defaultTuiAgent: null, detected: ['gemini'] })).toBe('gemini')
+    expect(pickManagerAgent({ surface: 'chat', defaultTuiAgent: 'claude', detected: [] })).toBeNull()
+  })
+})
+
+describe('pickManagerAgent for a terminal', () => {
+  it('uses the installed default, even one that cannot chat', () => {
+    expect(
+      pickManagerAgent({ surface: 'terminal', defaultTuiAgent: 'gemini', detected: ['claude', 'gemini'] })
+    ).toBe('gemini')
+  })
+
+  it('falls back to the first detected agent in pick order, skipping disabled ones', () => {
+    expect(
+      pickManagerAgent({ surface: 'terminal', defaultTuiAgent: 'blank', detected: ['aider', 'codex'] })
+    ).toBe('codex')
+    expect(
+      pickManagerAgent({
+        surface: 'terminal',
+        defaultTuiAgent: 'claude',
+        detected: ['aider', 'codex'],
+        disabled: ['codex']
+      })
+    ).toBe('aider')
+    expect(pickManagerAgent({ surface: 'terminal', defaultTuiAgent: null, detected: [] })).toBeNull()
   })
 })

@@ -37,6 +37,7 @@ function record(scopeKey: ManagerAgentRecord['scopeKey']): ManagerAgentRecord {
   return {
     scopeKey,
     tabId: 't',
+    surface: 'terminal',
     agent: 'claude',
     hostWorktreeId: 'h',
     briefVersion: 2,

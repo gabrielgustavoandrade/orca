@@ -10,4 +10,15 @@ export type AgentOversightExperimentalSettings = {
   experimentalAgentDashboardShowIdle?: boolean
   /** Experimental: one persistent Manager chat that delegates work to other agents through orchestration. */
   experimentalManagerAgent?: boolean
+  /** Where a new Manager runs: the agent's own CLI in a terminal (absent), or the opt-in Chat UI. */
+  managerAgentSurface?: ManagerAgentSurface
+}
+
+export type ManagerAgentSurface = 'terminal' | 'chat'
+
+/** Why terminal by default: some agent subscriptions may only be used through their own CLI. */
+export function resolveManagerAgentSurface(
+  settings: Pick<AgentOversightExperimentalSettings, 'managerAgentSurface'> | null | undefined
+): ManagerAgentSurface {
+  return settings?.managerAgentSurface === 'chat' ? 'chat' : 'terminal'
 }
