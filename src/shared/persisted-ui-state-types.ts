@@ -159,6 +159,8 @@ export type PersistedUIState = {
   manuallyUnreadTurnsByPaneKey?: Record<string, number>
   /** User-hidden setup-guide sidebar entry; a reversible declutter pref (Help menu stays available), not completion. */
   setupGuideSidebarDismissed?: boolean
+  /** Tab id of the experimental Manager chat in the floating workspace, so reopening focuses the same chat. Renderer-owned via ui:set. */
+  managerAgentTabId?: string | null
   /** One-shot marker for the browser setup-guide milestone; profiles missing it are evaluated once in the renderer (completion needs runtime probes). */
   setupGuideBrowserMilestoneMigrated?: boolean
   /** Existing users who completed/dismissed the pre-browser checklist stay complete after the browser milestone is added. */

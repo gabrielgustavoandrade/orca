@@ -126,6 +126,8 @@ export const UI_STATE_GLOBAL_FIELDS = [
   'notificationPermissionRequested',
   'updateReassuranceSeen',
   'setupGuideSidebarDismissed',
+  // Why global: the Manager chat lives in the desktop-local floating workspace.
+  'managerAgentTabId',
   'setupGuideBrowserMilestoneMigrated',
   'setupGuideBrowserMilestoneLegacyComplete',
   'browserImportHintHidden',
