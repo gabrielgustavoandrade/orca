@@ -2,6 +2,7 @@ import { memo, useCallback, useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import type { Tab, TabGroup } from '../../../../shared/tab-types'
 import { useAppStore } from '@/store'
+import { selectManagerHostedTabIds } from '@/lib/manager-hosted-tabs'
 import {
   structuredAgentSessionOwnerForTab,
   structuredAgentSessionTargetForHost
@@ -67,11 +68,12 @@ const StructuredAgentSessionPaneOverlayLayer = memo(
     worktreeId: string
     isWorktreeActive: boolean
   }): React.JSX.Element {
-    const { unifiedTabs, groups, activeGroupId } = useAppStore(
+    const { unifiedTabs, groups, activeGroupId, hiddenTabIds } = useAppStore(
       useShallow((state) => ({
         unifiedTabs: state.unifiedTabsByWorktree[worktreeId] ?? EMPTY_UNIFIED_TABS,
         groups: state.groupsByWorktree[worktreeId] ?? EMPTY_GROUPS,
-        activeGroupId: state.activeGroupIdByWorktree[worktreeId]
+        activeGroupId: state.activeGroupIdByWorktree[worktreeId],
+        hiddenTabIds: selectManagerHostedTabIds(state)
       }))
     )
     const focusGroup = useAppStore((state) => state.focusGroup)
@@ -84,8 +86,14 @@ const StructuredAgentSessionPaneOverlayLayer = memo(
       [groups]
     )
     const structuredTabs = useMemo(
-      () => unifiedTabs.filter((tab): tab is StructuredAgentSessionTab => isStructuredTab(tab)),
-      [unifiedTabs]
+      () =>
+        unifiedTabs.filter(
+          // Why: the Manager page is a Manager chat's only mount; a second one here would double
+          // its transcript stream, composer and window-level chat shortcuts.
+          (tab): tab is StructuredAgentSessionTab =>
+            isStructuredTab(tab) && !hiddenTabIds.has(tab.id)
+        ),
+      [hiddenTabIds, unifiedTabs]
     )
 
     return (

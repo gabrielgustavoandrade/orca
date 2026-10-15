@@ -8,6 +8,7 @@ import { useTabGroupTabCloseCommands } from './useTabGroupTabCloseCommands'
 import { useTabGroupCloseScopeCommands } from './useTabGroupCloseScopeCommands'
 import { useTabGroupActivationCommands } from './useTabGroupActivationCommands'
 import { useTabGroupCreationCommands } from './useTabGroupCreationCommands'
+import { selectManagerHostedTabIds } from '@/lib/manager-hosted-tabs'
 
 const EMPTY_GROUPS: readonly TabGroup[] = []
 const EMPTY_UNIFIED_TABS: readonly Tab[] = []
@@ -35,7 +36,8 @@ export function useTabGroupWorkspaceModel({
       expandedPaneByTabId: state.expandedPaneByTabId,
       terminalLayoutsByTabId: state.terminalLayoutsByTabId ?? EMPTY_TERMINAL_LAYOUTS_BY_TAB_ID,
       generatedTabTitlesEnabled: state.settings?.tabAutoGenerateTitle === true,
-      mobileEmulatorEnabled: state.settings?.mobileEmulatorEnabled !== false
+      mobileEmulatorEnabled: state.settings?.mobileEmulatorEnabled !== false,
+      hiddenTabIds: selectManagerHostedTabIds(state)
     }))
   )
 

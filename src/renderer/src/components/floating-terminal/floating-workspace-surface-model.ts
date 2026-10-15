@@ -1,6 +1,7 @@
 import { FLOATING_TERMINAL_WORKTREE_ID } from '../../../../shared/constants'
 import type { TabGroupLayoutNode } from '../../../../shared/tab-types'
 import type { AppState } from '@/store/types'
+import { selectManagerHostedTabIds, type ManagerHostedTabState } from '@/lib/manager-hosted-tabs'
 
 export type FloatingWorkspaceSurfaceModel =
   | { kind: 'empty' }
@@ -15,7 +16,8 @@ type FloatingWorkspaceSurfaceState = Pick<
   | 'tabsByWorktree'
   | 'browserTabsByWorktree'
   | 'openFiles'
->
+> &
+  ManagerHostedTabState
 
 /**
  * Decides emptiness and layout for the floating panel body atomically.
@@ -40,7 +42,11 @@ export function resolveFloatingWorkspaceSurfaceModel(
     (state.browserTabsByWorktree[FLOATING_TERMINAL_WORKTREE_ID] ?? []).map((tab) => tab.id)
   )
   const fileIds = new Set(state.openFiles.map((file) => file.id))
+  const hiddenTabIds = selectManagerHostedTabIds(state)
   const hasVisibleTab = tabs.some((tab) => {
+    if (hiddenTabIds.has(tab.id)) {
+      return false
+    }
     if (tab.contentType === 'terminal') {
       return terminalIds.has(tab.entityId)
     }
@@ -59,7 +65,7 @@ export function resolveFloatingWorkspaceSurfaceModel(
   const storedFocusId = state.activeGroupIdByWorktree[FLOATING_TERMINAL_WORKTREE_ID]
   const focusedGroupId =
     (storedFocusId && groups.some((group) => group.id === storedFocusId) ? storedFocusId : null) ??
-    groups.find((group) => group.activeTabId != null)?.id ??
+    groups.find((group) => group.activeTabId != null && !hiddenTabIds.has(group.activeTabId))?.id ??
     groups[0]?.id
   if (!focusedGroupId) {
     return { kind: 'empty' }

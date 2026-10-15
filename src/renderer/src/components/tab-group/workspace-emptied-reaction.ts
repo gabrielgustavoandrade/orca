@@ -3,6 +3,7 @@ import { useAppStore } from '../../store'
 import { armFloatingPanelReclaimIntent } from '@/lib/floating-workspace-focus-reclaim'
 import { isFloatingWorkspacePanelFocused } from '@/lib/floating-workspace-terminal-actions'
 import { selectFloatingVisibleTabCount } from '@/store/selectors'
+import { selectManagerHostedTabIds } from '@/lib/manager-hosted-tabs'
 
 /**
  * What a close does if it leaves its workspace with no tabs. Capture it when the close is requested
@@ -33,7 +34,12 @@ function leaveWorktreeIfEmpty(worktreeId: string): void {
     return
   }
   // Why: split-group closes bypass legacy Terminal.tsx; deselect the emptied worktree here or the window goes blank instead of landing.
-  if (state.reconcileWorktreeTabModel(worktreeId).renderableTabCount === 0) {
+  // Why: a hidden Manager chat left behind still counts as renderable but shows nothing.
+  const hiddenTabIds = selectManagerHostedTabIds(state)
+  const hiddenCount = (state.unifiedTabsByWorktree[worktreeId] ?? []).filter((tab) =>
+    hiddenTabIds.has(tab.id)
+  ).length
+  if (state.reconcileWorktreeTabModel(worktreeId).renderableTabCount <= hiddenCount) {
     state.setActiveWorktree(null)
   }
 }

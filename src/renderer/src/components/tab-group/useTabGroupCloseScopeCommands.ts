@@ -3,6 +3,7 @@ import type { Tab, TabGroup } from '../../../../shared/tab-types'
 import { useAppStore } from '../../store'
 import { captureWorkspaceEmptiedReaction } from './workspace-emptied-reaction'
 import { isEditorTabContentType } from '@/store/slices/editor/tabs/editor-tab-content-type'
+import { isManagerHostedTab } from '@/lib/manager-hosted-tabs'
 
 export function useTabGroupCloseScopeCommands({
   groupId,
@@ -23,8 +24,10 @@ export function useTabGroupCloseScopeCommands({
 
   const closeGroup = useCallback(() => {
     const whenEmptied = captureWorkspaceEmptiedReaction(worktreeId)
-    const items = [...(useAppStore.getState().unifiedTabsByWorktree[worktreeId] ?? [])].filter(
-      (item) => item.groupId === groupId
+    const state = useAppStore.getState()
+    // Why: a Manager chat shares the group but is not the user's tab to close in bulk.
+    const items = [...(state.unifiedTabsByWorktree[worktreeId] ?? [])].filter(
+      (item) => item.groupId === groupId && !isManagerHostedTab(state, item.id)
     )
     for (const item of items) {
       closeItem(item.id, { skipEmptyCheck: true })

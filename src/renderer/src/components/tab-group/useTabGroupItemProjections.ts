@@ -19,6 +19,8 @@ export type TabGroupWorktreeSnapshot = {
   terminalLayoutsByTabId: NonNullable<TabGroupAppState['terminalLayoutsByTabId']>
   generatedTabTitlesEnabled: boolean
   mobileEmulatorEnabled: boolean
+  /** Tabs another surface owns (Manager chats); never listed in the strip. */
+  hiddenTabIds: ReadonlySet<string>
 }
 
 export type GroupEditorItem = OpenFile & { tabId: string }
@@ -41,8 +43,11 @@ export function useTabGroupItemProjections({
     [groupId, worktreeState.groups]
   )
   const groupTabs = useMemo(
-    () => worktreeState.unifiedTabs.filter((item) => item.groupId === groupId),
-    [groupId, worktreeState.unifiedTabs]
+    () =>
+      worktreeState.unifiedTabs.filter(
+        (item) => item.groupId === groupId && !worktreeState.hiddenTabIds.has(item.id)
+      ),
+    [groupId, worktreeState.unifiedTabs, worktreeState.hiddenTabIds]
   )
   const activeItemId = group?.activeTabId ?? null
   const activeTab = groupTabs.find((item) => item.id === activeItemId) ?? null

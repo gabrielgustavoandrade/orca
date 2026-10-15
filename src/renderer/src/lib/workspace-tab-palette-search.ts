@@ -60,6 +60,8 @@ export type BuildSearchableWorkspaceTabsOptions = WorkspaceTabAgentMetadataState
   unifiedTabsByWorktree: Record<string, readonly Tab[] | undefined>
   tabsByWorktree: Record<string, readonly TerminalTab[] | undefined>
   openFiles: readonly OpenFile[]
+  /** Tabs only another surface shows (Manager chats); never listed. */
+  hiddenTabIds?: ReadonlySet<string>
   activeGroupIdByWorktree: Record<string, string | undefined>
   groupsByWorktree: Record<string, readonly TabGroup[] | undefined>
   activeWorktreeId: string | null
@@ -75,4 +77,10 @@ export type BuildSearchableWorkspaceTabsOptions = WorkspaceTabAgentMetadataState
   paneForegroundAgentByPaneKey?: Record<string, PaneForegroundAgentEntry>
 }
 
-export const buildSearchableWorkspaceTabs = buildSearchableWorkspaceTabEntries
+export function buildSearchableWorkspaceTabs(
+  options: BuildSearchableWorkspaceTabsOptions
+): SearchableWorkspaceTab[] {
+  const entries = buildSearchableWorkspaceTabEntries(options)
+  const hidden = options.hiddenTabIds
+  return hidden && hidden.size > 0 ? entries.filter((entry) => !hidden.has(entry.tab.id)) : entries
+}

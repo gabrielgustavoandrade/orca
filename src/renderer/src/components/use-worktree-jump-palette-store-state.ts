@@ -11,6 +11,7 @@ import {
   selectPaletteStatusInputs
 } from './worktree-jump-palette-status-inputs'
 import { selectWorktreePaletteCacheInputs } from '@/components/cmd-j/worktree-palette-cache-inputs'
+import { selectManagerHostedTabIds } from '@/lib/manager-hosted-tabs'
 
 export function useWorktreeJumpPaletteStoreState({
   visible,
@@ -88,6 +89,7 @@ export function useWorktreeJumpPaletteStoreState({
     (state) => state.sleepingAgentSessionsByPaneKey
   )
   const paneForegroundAgentByPaneKey = useAppStore((state) => state.paneForegroundAgentByPaneKey)
+  const managerHostedTabIds = useAppStore(selectManagerHostedTabIds)
   const settings = useAppStore((state) => state.settings)
   const worktreeVisibilityDefaultsByHost = useAppStore(
     (state) => state.worktreeVisibilityDefaultsByHost
@@ -171,6 +173,7 @@ export function useWorktreeJumpPaletteStoreState({
     retainedAgentsByPaneKey,
     sleepingAgentSessionsByPaneKey,
     paneForegroundAgentByPaneKey,
+    managerHostedTabIds,
     settings,
     worktreeVisibilityDefaultsByHost,
     sshTargetLabels,

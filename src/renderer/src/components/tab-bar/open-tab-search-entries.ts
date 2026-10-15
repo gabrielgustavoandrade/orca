@@ -20,6 +20,7 @@ import {
   type ExecutionHostId
 } from '../../../../shared/execution-host'
 import { getPaletteOwnershipWorktreeIds } from '@/lib/unified-tab-host-ownership'
+import { selectManagerHostedTabIds, type ManagerHostedTabState } from '@/lib/manager-hosted-tabs'
 
 export type OpenTabSearchEntries = {
   workspaceTabs: readonly SearchableWorkspaceTab[]
@@ -46,12 +47,13 @@ export type OpenTabSearchEntryState = Pick<
   | 'tabsByWorktree'
   | 'unifiedTabsByWorktree'
   | 'worktreesByRepo'
-> & {
-  executionHostId: ExecutionHostId
-  generatedTitlesEnabled: boolean
-  repo: Pick<Repo, 'connectionId' | 'displayName' | 'executionHostId' | 'id'> | null
-  worktree: Worktree
-}
+> &
+  ManagerHostedTabState & {
+    executionHostId: ExecutionHostId
+    generatedTitlesEnabled: boolean
+    repo: Pick<Repo, 'connectionId' | 'displayName' | 'executionHostId' | 'id'> | null
+    worktree: Worktree
+  }
 
 export type OpenTabSearchAgentState = Pick<
   AppState,
@@ -144,6 +146,7 @@ export function buildOpenTabSearchEntries(
     workspaceTabs: buildSearchableWorkspaceTabs({
       ...scope,
       unifiedTabsByWorktree: state.unifiedTabsByWorktree,
+      hiddenTabIds: selectManagerHostedTabIds(state),
       tabsByWorktree: state.tabsByWorktree,
       openFiles: state.openFiles,
       agentStatusByPaneKey: agentState.agentStatusByPaneKey,

@@ -1,6 +1,7 @@
 import type { Tab, TabGroup } from '../../../../shared/tab-types'
 import type { AppState } from '../../store/types'
 import { reconcileTabOrder } from './reconcile-order'
+import { isManagerHostedTab, type ManagerHostedTabState } from '@/lib/manager-hosted-tabs'
 
 export type VisibleTabRef = {
   type: 'terminal' | 'editor' | 'agent-session' | 'browser' | 'simulator'
@@ -172,7 +173,8 @@ export function getActiveTabNavOrder(
     | 'tabsByWorktree'
     | 'openFiles'
     | 'browserTabsByWorktree'
-  >,
+  > &
+    ManagerHostedTabState,
   worktreeId: string,
   ids: ActiveTabNavOrderIds = {}
 ): VisibleTabRef[] {
@@ -189,7 +191,8 @@ export function getActiveTabNavOrder(
   const agentSessionIds =
     ids.agentSessionIds ??
     (state.unifiedTabsByWorktree[worktreeId] ?? [])
-      .filter((tab) => tab.contentType === 'agent-session')
+      // Why: Manager chats are reached from the Manager page, never by tab cycling.
+      .filter((tab) => tab.contentType === 'agent-session' && !isManagerHostedTab(state, tab.id))
       .map((tab) => tab.id)
 
   const activeGroupId = state.activeGroupIdByWorktree[worktreeId]

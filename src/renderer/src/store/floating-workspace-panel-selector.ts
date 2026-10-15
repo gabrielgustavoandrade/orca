@@ -1,6 +1,7 @@
 import { FLOATING_TERMINAL_WORKTREE_ID } from '../../../shared/constants'
 import type { TerminalTab } from '../../../shared/terminal-tab-types'
 import type { AppState } from './types'
+import { selectManagerHostedTabIds, type ManagerHostedTabState } from '@/lib/manager-hosted-tabs'
 
 export type FloatingWorkspacePanelVisibilityState = Pick<
   AppState,
@@ -10,7 +11,8 @@ export type FloatingWorkspacePanelVisibilityState = Pick<
 type FloatingVisibleTabCountState = Pick<
   AppState,
   'browserTabsByWorktree' | 'openFiles' | 'tabsByWorktree' | 'unifiedTabsByWorktree'
->
+> &
+  ManagerHostedTabState
 export type EmptyFloatingWorkspacePanelState = FloatingWorkspacePanelVisibilityState &
   FloatingVisibleTabCountState
 type FloatingVisibleTabCountCache = {
@@ -18,6 +20,7 @@ type FloatingVisibleTabCountCache = {
   browserTabs: NonNullable<AppState['browserTabsByWorktree'][string]>
   openFiles: AppState['openFiles']
   unifiedTabs: NonNullable<AppState['unifiedTabsByWorktree'][string]>
+  hiddenTabIds: ReadonlySet<string>
   count: number
 }
 
@@ -43,13 +46,15 @@ export function selectFloatingVisibleTabCount(state: FloatingVisibleTabCountStat
     state.browserTabsByWorktree[FLOATING_TERMINAL_WORKTREE_ID] ?? EMPTY_BROWSER_TABS
   const unifiedTabs =
     state.unifiedTabsByWorktree[FLOATING_TERMINAL_WORKTREE_ID] ?? EMPTY_UNIFIED_TABS
+  const hiddenTabIds = selectManagerHostedTabIds(state)
   const cached = floatingVisibleTabCountCache
   if (
     cached &&
     cached.terminalTabs === terminalTabs &&
     cached.browserTabs === browserTabs &&
     cached.openFiles === state.openFiles &&
-    cached.unifiedTabs === unifiedTabs
+    cached.unifiedTabs === unifiedTabs &&
+    cached.hiddenTabIds === hiddenTabIds
   ) {
     return cached.count
   }
@@ -71,6 +76,10 @@ export function selectFloatingVisibleTabCount(state: FloatingVisibleTabCountStat
 
   let count = 0
   for (const tab of unifiedTabs) {
+    if (hiddenTabIds.has(tab.id)) {
+      // Why: a Manager chat alone must not keep the floating panel mounted.
+      continue
+    }
     if (tab.contentType === 'terminal') {
       count += terminalIds.has(tab.entityId) ? 1 : 0
     } else if (tab.contentType === 'browser') {
@@ -89,6 +98,7 @@ export function selectFloatingVisibleTabCount(state: FloatingVisibleTabCountStat
     browserTabs,
     openFiles: state.openFiles,
     unifiedTabs,
+    hiddenTabIds,
     count
   }
   return count
