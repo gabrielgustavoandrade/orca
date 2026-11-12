@@ -182,6 +182,42 @@ export const getExperimentalSearchEntry = createLocalizedCatalog(
           )
         ]
       },
+      agentsMap: {
+        title: translate(
+          'auto.components.settings.experimental.search.agentsMap.title',
+          'Agents map'
+        ),
+        description: translate(
+          'auto.components.settings.experimental.search.agentsMap.description',
+          'Read-only map of live agents grouped by project and workspace, with parent and subagent links.'
+        ),
+        keywords: [
+          ...translateSearchKeyword(
+            'auto.components.settings.experimental.search.0d24759f14',
+            'experimental'
+          ),
+          ...translateSearchKeyword(
+            'auto.components.settings.experimental.search.agentsMap.agent',
+            'agent'
+          ),
+          ...translateSearchKeyword(
+            'auto.components.settings.experimental.search.agentsMap.agents',
+            'agents'
+          ),
+          ...translateSearchKeyword(
+            'auto.components.settings.experimental.search.agentsMap.map',
+            'map'
+          ),
+          ...translateSearchKeyword(
+            'auto.components.settings.experimental.search.agentsMap.graph',
+            'graph'
+          ),
+          ...translateSearchKeyword(
+            'auto.components.settings.experimental.search.agentsMap.lineage',
+            'lineage'
+          )
+        ]
+      },
       newWorktreeCardStyle: getNewWorktreeCardStyleSearchEntry(),
       ephemeralVms: getEphemeralVmsSearchEntry()
     }) satisfies Record<string, SettingsSearchEntry>

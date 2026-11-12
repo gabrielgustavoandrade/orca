@@ -1,5 +1,5 @@
 import React from 'react'
-import { BookOpen, CalendarClock, EyeOff, Files, Search, Smartphone } from 'lucide-react'
+import { BookOpen, CalendarClock, EyeOff, Files, Network, Search, Smartphone } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAppStore } from '@/store/index'
 import { cn } from '@/lib/class-names'
@@ -46,6 +46,12 @@ export function shouldShowAgentDashboardButton(
   return settings?.experimentalAgentDashboardPopout === true
 }
 
+export function shouldShowAgentsMapButton(
+  settings: Partial<Pick<GlobalSettings, 'experimentalAgentsMap'>> | null | undefined
+): boolean {
+  return settings?.experimentalAgentsMap === true
+}
+
 const AgentDashboardSidebarEntry = lazyWithRetry(() => import('./AgentDashboardSidebarEntry'))
 
 const SidebarNav = React.memo(function SidebarNav() {
@@ -55,18 +61,22 @@ const SidebarNav = React.memo(function SidebarNav() {
   const worktreePaletteShortcutCombos = useShortcutKeyComboDetails('worktree.palette')
   const openAutomationsPage = useAppStore((s) => s.openAutomationsPage)
   const openMobilePage = useAppStore((s) => s.openMobilePage)
+  const openAgentsMapPage = useAppStore((s) => s.openAgentsMapPage)
+  const closeAgentsMapPage = useAppStore((s) => s.closeAgentsMapPage)
   const openArtifactsPage = useAppStore((s) => s.openArtifactsPage)
   const openSkillsPage = useAppStore((s) => s.openSkillsPage)
   const openModal = useAppStore((s) => s.openModal)
   const updateSettings = useAppStore((s) => s.updateSettings)
   const activeView = useAppStore((s) => s.activeView)
   const showAgentDashboardButton = useAppStore((s) => shouldShowAgentDashboardButton(s.settings))
+  const showAgentsMapButton = useAppStore((s) => shouldShowAgentsMapButton(s.settings))
   const showAutomationsButton = useAppStore((s) => shouldShowAutomationsButton(s.settings))
   const showMobileButton = useAppStore((s) => shouldShowMobileButton(s.settings))
   const showArtifactsButton = useAppStore((s) => shouldShowArtifactsButton(s.settings))
   const showSkillsButton = useAppStore((s) => shouldShowSkillsButton(s.settings))
   const automationsActive = activeView === 'automations'
   const mobileActive = activeView === 'mobile'
+  const agentsMapActive = activeView === 'agents-map'
   const artifactsActive = activeView === 'artifacts'
   const skillsActive = activeView === 'skills'
   const mobileOnboardingBadge = useMobileSidebarOnboardingBadge(showMobileButton)
@@ -210,6 +220,30 @@ const SidebarNav = React.memo(function SidebarNav() {
         <React.Suspense fallback={null}>
           <AgentDashboardSidebarEntry />
         </React.Suspense>
+      ) : null}
+      {showAgentsMapButton ? (
+        <button
+          type="button"
+          onClick={agentsMapActive ? closeAgentsMapPage : openAgentsMapPage}
+          aria-current={agentsMapActive ? 'page' : undefined}
+          className={cn(
+            'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] font-medium tracking-tight transition-colors',
+            agentsMapActive
+              ? 'bg-worktree-sidebar-accent text-worktree-sidebar-accent-foreground'
+              : 'text-worktree-sidebar-foreground/60 hover:bg-worktree-sidebar-foreground/8'
+          )}
+        >
+          <Network
+            className={cn(
+              'size-4 shrink-0',
+              !agentsMapActive && 'text-worktree-sidebar-foreground/30'
+            )}
+            strokeWidth={agentsMapActive ? 2.25 : 1.75}
+          />
+          <span className="min-w-0 flex-1 truncate">
+            {t('auto.components.sidebar.SidebarNav.agentsMap', 'Agents map')}
+          </span>
+        </button>
       ) : null}
       {showMobileButton ? (
         <ContextMenu>

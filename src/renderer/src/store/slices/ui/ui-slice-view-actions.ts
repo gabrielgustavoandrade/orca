@@ -106,6 +106,16 @@ export function createUiViewActions(set: UISliceSet, get: UISliceGet): Partial<U
       set((state) => ({
         activeView: state.previousViewBeforeMobile
       })),
+    openAgentsMapPage: () =>
+      set((state) => ({
+        activeView: 'agents-map',
+        previousViewBeforeAgentsMap:
+          state.activeView === 'agents-map' ? state.previousViewBeforeAgentsMap : state.activeView
+      })),
+    closeAgentsMapPage: () =>
+      set((state) => ({
+        activeView: state.previousViewBeforeAgentsMap
+      })),
     setNewWorkspaceDraft: (draft) => set({ newWorkspaceDraft: draft }),
     clearNewWorkspaceDraft: () => set({ newWorkspaceDraft: null })
   }

@@ -449,6 +449,8 @@ export type GlobalSettings = GlobalSettingsBase & {
   experimentalActivity: boolean
   /** Experimental: pop-out Kanban dashboard for monitoring and opening agent terminals across worktrees. */
   experimentalAgentDashboardPopout?: boolean
+  /** Experimental: read-only graph of live agents grouped by project and workspace. */
+  experimentalAgentsMap?: boolean
   /** Experimental: panel beside chats and terminals listing the agents each agent works with; off mounts nothing. */
   experimentalOrchestrationPanel?: boolean
   /** Set after the one-time legacy Agents tab introduction has been acknowledged. */

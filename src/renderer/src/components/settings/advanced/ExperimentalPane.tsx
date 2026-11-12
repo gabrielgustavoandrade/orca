@@ -39,6 +39,7 @@ export function ExperimentalPane({
   const showAgentDashboard = matchesSettingsSearch(searchQuery, [
     getExperimentalSearchEntry().agentDashboard
   ])
+  const showAgentsMap = matchesSettingsSearch(searchQuery, [getExperimentalSearchEntry().agentsMap])
   const showTerminalAttention = matchesSettingsSearch(searchQuery, [
     getExperimentalSearchEntry().terminalAttention
   ])
@@ -60,6 +61,43 @@ export function ExperimentalPane({
       <SettingsGroup>
         {showAgentDashboard ? (
           <AgentDashboardExperimentalSetting settings={settings} updateSettings={updateSettings} />
+        ) : null}
+
+        {showAgentsMap ? (
+          <SearchableSetting
+            title={t('auto.components.settings.ExperimentalPane.agentsMap.title', 'Agents map')}
+            description={t(
+              'auto.components.settings.ExperimentalPane.agentsMap.description',
+              'Read-only map of live agents grouped by project and workspace, with parent and subagent links.'
+            )}
+            keywords={getExperimentalSearchEntry().agentsMap.keywords}
+            className="space-y-3 py-3"
+            id="experimental-agents-map"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0 shrink space-y-0.5">
+                <Label>
+                  {t('auto.components.settings.ExperimentalPane.agentsMap.title', 'Agents map')}
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  {t(
+                    'auto.components.settings.ExperimentalPane.agentsMap.copy',
+                    'Read-only map of live agents grouped by project and workspace, with parent and subagent links.'
+                  )}
+                </p>
+              </div>
+              <Switch
+                checked={settings.experimentalAgentsMap === true}
+                aria-label={t(
+                  'auto.components.settings.ExperimentalPane.agentsMap.toggleLabel',
+                  'Toggle agents map'
+                )}
+                onCheckedChange={() =>
+                  updateSettings({ experimentalAgentsMap: settings.experimentalAgentsMap !== true })
+                }
+              />
+            </div>
+          </SearchableSetting>
         ) : null}
 
         {showPet ? (

@@ -6946,7 +6946,8 @@
           "fee535205b": "Tasks",
           "d599269755": "Hide from sidebar",
           "artifacts": "Artifacts",
-          "skills": "Skills"
+          "skills": "Skills",
+          "agentsMap": "Agents map"
         },
         "SidebarRepositoryFilterSection": {
           "d3a9c4cea1": "Clear",
@@ -8708,6 +8709,12 @@
             "modeAriaLabel": "Agent Dashboard open mode",
             "modeInWindow": "In-window",
             "modePopout": "Pop-out"
+          },
+          "agentsMap": {
+            "title": "Agents map",
+            "description": "Read-only map of live agents grouped by project and workspace, with parent and subagent links.",
+            "copy": "Read-only map of live agents grouped by project and workspace, with parent and subagent links.",
+            "toggleLabel": "Toggle agents map"
           }
         },
         "FloatingWorkspacePane": {
@@ -10910,6 +10917,15 @@
               "inWindow": "in-window",
               "worktrees": "worktrees",
               "eaf17a7214": "Agent dashboard"
+            },
+            "agentsMap": {
+              "title": "Agents map",
+              "description": "Read-only map of live agents grouped by project and workspace, with parent and subagent links.",
+              "agent": "agent",
+              "agents": "agents",
+              "map": "map",
+              "graph": "graph",
+              "lineage": "lineage"
             }
           }
         },
@@ -20055,6 +20071,23 @@
       },
       "NewWorkspaceComposerFooter": {
         "create": "Create"
+      },
+      "agents": {
+        "map": {
+          "AgentsMapPage": {
+            "project": "Project",
+            "workspace": "Workspace",
+            "host": "Host",
+            "local": "Local",
+            "state": "State",
+            "activity": "Activity",
+            "lastMessage": "Last agent message",
+            "subagents": "Subagents",
+            "openTerminal": "Open terminal",
+            "terminalUnavailable": "Terminal is no longer available",
+            "empty": "No live agents"
+          }
+        }
       }
     },
     "i18n": {
