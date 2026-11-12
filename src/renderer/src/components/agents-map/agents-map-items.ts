@@ -123,13 +123,16 @@ export function buildItems(input: AgentsMapInput): TreeItem[] {
 export function groupByWorkspace(input: AgentsMapInput, items: TreeItem[]): ProjectBucket[] {
   const projects = new Map<string, ProjectBucket>()
   const workspaces = new Map<string, WorkspaceBucket>()
-  const ensure = (
-    repoId: string,
-    worktreeId: string,
-    repoName: string,
-    worktreeName: string,
-    hostLabel?: string
-  ): void => {
+  const ensure = ({
+    repoId,
+    worktreeId,
+    repoName,
+    worktreeName,
+    hostLabel
+  }: Pick<
+    DashboardCard,
+    'repoId' | 'worktreeId' | 'repoName' | 'worktreeName' | 'hostLabel'
+  >): void => {
     const key = workspaceKeyOf({ repoId, worktreeId })
     if (workspaces.has(key)) {
       return
@@ -144,10 +147,10 @@ export function groupByWorkspace(input: AgentsMapInput, items: TreeItem[]): Proj
     project.workspaces.push(bucket)
   }
   for (const ws of input.snapshot.workspaces ?? []) {
-    ensure(ws.repoId, ws.worktreeId, ws.repoName, ws.worktreeName, ws.hostLabel)
+    ensure(ws)
   }
   for (const { card } of items) {
-    ensure(card.repoId, card.worktreeId, card.repoName, card.worktreeName, card.hostLabel)
+    ensure(card)
   }
   for (const item of items) {
     workspaces.get(workspaceKeyOf(item.card))?.items.push(item)
