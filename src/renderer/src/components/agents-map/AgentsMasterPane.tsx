@@ -1,5 +1,6 @@
 import React, { useLayoutEffect, useEffect, useState } from 'react'
 import { ChevronDown, ChevronUp, Crown } from 'lucide-react'
+import { cn } from '@/lib/class-names'
 import { useTranslate } from '@/i18n/use-translate'
 import { Button } from '@/components/ui/button'
 import { AgentStateDot } from '@/components/AgentStateDot'
@@ -49,11 +50,10 @@ export function AgentsMasterPane({
 
   return (
     <section
-      className={
-        showTerminal || (!running && !collapsed)
-          ? 'flex h-[45%] min-h-48 shrink-0 flex-col border-t border-border'
-          : 'flex shrink-0 flex-col border-t border-border'
-      }
+      className={cn(
+        'flex shrink-0 flex-col border-t border-border',
+        !collapsed && 'h-[45%] min-h-48'
+      )}
     >
       <header className="flex h-9 shrink-0 items-center gap-2 px-3">
         <Crown className="size-3.5 text-muted-foreground" aria-hidden />
