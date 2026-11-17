@@ -3,7 +3,7 @@ import { useAppStore } from '@/store'
 import { useLiveDashboardSnapshot } from '../dashboard/useLiveDashboardSnapshot'
 import { AgentsMasterPane } from './AgentsMasterPane'
 import { MasterRail } from './MasterRail'
-import { buildItems } from './agents-map-items'
+import { buildMasterRail } from './master-rail'
 import { useMasterAgent } from './use-master-agent'
 import type { AgentsMapNode } from './agents-map-types'
 
@@ -13,28 +13,26 @@ function MasterBody(): React.JSX.Element {
   const retained = useAppStore((s) => s.retainedAgentsByPaneKey)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const master = useMasterAgent()
-  const nodes = useMemo(
+  const groups = useMemo(
     () =>
-      buildItems({
+      buildMasterRail({
         snapshot,
         liveEntries,
         retainedPaneKeys: new Set(Object.keys(retained)),
         masterWorktreeId: master.worktreeId
-      }).map((item) => item.node),
+      }),
     [snapshot, liveEntries, retained, master.worktreeId]
   )
-  const masterNode = nodes.find((node) => node.isMaster) ?? null
-  const others = nodes.filter((node) => !node.isMaster)
-  const selected = others.find((node) => node.id === selectedId) ?? null
+  const selected = groups.listed.find((item) => item.node.id === selectedId)?.node ?? null
 
   const toggle = (node: AgentsMapNode): void =>
     setSelectedId((current) => (current === node.id ? null : node.id))
 
   return (
     <div className="flex min-h-0 flex-1">
-      <AgentsMasterPane master={master} state={masterNode?.displayState ?? null} />
+      <AgentsMasterPane master={master} state={groups.master?.displayState ?? null} />
       <MasterRail
-        nodes={others}
+        groups={groups}
         selected={selected}
         onSelect={toggle}
         onClose={() => setSelectedId(null)}

@@ -20092,7 +20092,10 @@
             "masterHint": "A long-lived Claude Code session in its own folder.",
             "startMaster": "Start master",
             "closeDetail": "Close",
-            "railEmpty": "No other agents yet. Ask the master to start one."
+            "railEmpty": "No other agents yet. Ask the master to start one.",
+            "needsYou": "Needs you",
+            "startedByMaster": "Started by Master",
+            "otherAgents": "Other agents"
           }
         }
       }
