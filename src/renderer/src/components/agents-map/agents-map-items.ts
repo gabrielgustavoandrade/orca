@@ -1,13 +1,8 @@
 import { dashboardCardDisplayState } from '../../../../shared/dashboard-snapshot'
 import { formatAgentTypeLabel } from '../../../../shared/agent-status/presentation/agent-type-label'
 import type { AgentStatusEntry } from '../../../../shared/agent-status/contracts/agent-status-types'
-import type {
-  DashboardBucket,
-  DashboardCard,
-  DashboardCardDotState,
-  DashboardRevealAgentArgs
-} from '../../../../shared/dashboard-snapshot'
-import type { AgentsMapInput, ProjectBucket, TreeItem, WorkspaceBucket } from './agents-map-types'
+import type { DashboardCard, DashboardRevealAgentArgs } from '../../../../shared/dashboard-snapshot'
+import type { AgentsMapInput, TreeItem } from './agents-map-types'
 
 function firstLine(text: string | undefined): string {
   return (
@@ -36,31 +31,15 @@ export function agentsMapActivity(
   return firstLine(card.lastAgentMessage) || card.task
 }
 
-function subagentBucket(dotState: DashboardCardDotState): DashboardBucket {
-  if (dotState === 'blocked' || dotState === 'waiting') {
-    return 'attention'
-  }
-  return dotState
-}
-
 export const byStart = (a: TreeItem, b: TreeItem): number =>
   a.card.startedAt - b.card.startedAt || a.card.paneKey.localeCompare(b.card.paneKey)
-
-export function workspaceKeyOf(card: Pick<DashboardCard, 'repoId' | 'worktreeId'>): string {
-  return `${card.repoId}:${card.worktreeId}`
-}
-
-function isMasterWorktree(input: AgentsMapInput, worktreeId: string): boolean {
-  return input.masterWorktreeId != null && input.masterWorktreeId === worktreeId
-}
 
 export function buildItems(input: AgentsMapInput): TreeItem[] {
   const cards = input.snapshot.cards.filter(
     (card) => !(input.retainedPaneKeys.has(card.paneKey) && !(card.paneKey in input.liveEntries))
   )
   const alive = new Set(cards.map((card) => card.paneKey))
-  const items: TreeItem[] = []
-  for (const card of cards) {
+  return cards.map((card) => {
     const reveal: DashboardRevealAgentArgs = {
       repoId: card.repoId,
       worktreeId: card.worktreeId,
@@ -68,106 +47,25 @@ export function buildItems(input: AgentsMapInput): TreeItem[] {
       tabId: card.tabId,
       leafId: card.leafId
     }
-    const projectLabel = card.repoName
-    const workspaceLabel = card.worktreeName
-    items.push({
+    return {
       card,
       parentId:
         card.parentPaneKey && alive.has(card.parentPaneKey) ? card.parentPaneKey : undefined,
-      children: [],
-      row: 0,
-      depth: 0,
       node: {
         id: card.paneKey,
-        kind: 'agent',
-        isMaster: isMasterWorktree(input, card.worktreeId),
+        isMaster: input.masterWorktreeId != null && input.masterWorktreeId === card.worktreeId,
         name: cardName(card),
         activity: agentsMapActivity(card, input.liveEntries[card.paneKey]),
         bucket: card.bucket,
         displayState: dashboardCardDisplayState(card),
         agentType: card.agentType,
-        x: 0,
-        y: 0,
         reveal,
-        projectLabel,
-        workspaceLabel,
+        projectLabel: card.repoName,
+        workspaceLabel: card.worktreeName,
         hostLabel: card.hostLabel,
         lastAgentMessage: card.lastAgentMessage,
         subagents: card.subagents ?? []
       }
-    })
-    for (const sub of card.subagents ?? []) {
-      items.push({
-        card,
-        parentId: card.paneKey,
-        children: [],
-        row: 0,
-        depth: 0,
-        node: {
-          id: `${card.paneKey}/${sub.id}`,
-          kind: 'subagent',
-          isMaster: false,
-          name: sub.name,
-          activity: '',
-          bucket: subagentBucket(sub.dotState),
-          displayState: sub.dotState,
-          agentType: card.agentType,
-          x: 0,
-          y: 0,
-          reveal,
-          projectLabel,
-          workspaceLabel,
-          hostLabel: card.hostLabel,
-          subagents: []
-        }
-      })
     }
-  }
-  return items
-}
-
-export function groupByWorkspace(input: AgentsMapInput, items: TreeItem[]): ProjectBucket[] {
-  const projects = new Map<string, ProjectBucket>()
-  const workspaces = new Map<string, WorkspaceBucket>()
-  const ensure = ({
-    repoId,
-    worktreeId,
-    repoName,
-    worktreeName,
-    hostLabel
-  }: Pick<
-    DashboardCard,
-    'repoId' | 'worktreeId' | 'repoName' | 'worktreeName' | 'hostLabel'
-  >): void => {
-    const key = workspaceKeyOf({ repoId, worktreeId })
-    if (workspaces.has(key)) {
-      return
-    }
-    let project = projects.get(repoId)
-    if (!project) {
-      project = {
-        repoId,
-        label: repoName,
-        isMaster: isMasterWorktree(input, worktreeId),
-        workspaces: []
-      }
-      projects.set(repoId, project)
-    }
-    const bucket: WorkspaceBucket = { key, label: worktreeName, hostLabel, items: [] }
-    workspaces.set(key, bucket)
-    project.workspaces.push(bucket)
-  }
-  for (const ws of input.snapshot.workspaces ?? []) {
-    ensure(ws)
-  }
-  for (const { card } of items) {
-    ensure(card)
-  }
-  for (const item of items) {
-    workspaces.get(workspaceKeyOf(item.card))?.items.push(item)
-  }
-  return [...projects.values()]
-    .sort((a, b) => Number(b.isMaster) - Number(a.isMaster))
-    .map((p) => ({ ...p, workspaces: p.workspaces.filter((w) => w.items.length > 0) }))
-    .filter((p) => p.workspaces.length > 0)
+  })
 }

@@ -20090,7 +20090,9 @@
             "expandMaster": "Expand master pane",
             "collapseMaster": "Collapse master pane",
             "masterHint": "A long-lived Claude Code session in its own folder.",
-            "startMaster": "Start master"
+            "startMaster": "Start master",
+            "closeDetail": "Close",
+            "railEmpty": "No other agents yet. Ask the master to start one."
           }
         }
       }

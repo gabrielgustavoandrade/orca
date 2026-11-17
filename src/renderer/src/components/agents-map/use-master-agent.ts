@@ -15,6 +15,7 @@ const MASTER_WORKSPACE_NAME = 'Master'
 export type MasterAgent = {
   worktreeId: string | null
   tabId: string | null
+  cwd: string | null
   starting: boolean
   start: () => Promise<void>
 }
@@ -100,5 +101,5 @@ export function useMasterAgent(): MasterAgent {
     }
   }, [masterDir, starting, workspace])
 
-  return { worktreeId, tabId, starting, start }
+  return { worktreeId, tabId, cwd: masterDir, starting, start }
 }
