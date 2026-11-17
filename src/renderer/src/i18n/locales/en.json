@@ -6947,7 +6947,7 @@
           "d599269755": "Hide from sidebar",
           "artifacts": "Artifacts",
           "skills": "Skills",
-          "agentsMap": "Agents map"
+          "agentsMap": "Master"
         },
         "SidebarRepositoryFilterSection": {
           "d3a9c4cea1": "Clear",
@@ -8711,10 +8711,10 @@
             "modePopout": "Pop-out"
           },
           "agentsMap": {
-            "title": "Agents map",
-            "description": "Read-only map of live agents grouped by project and workspace, with parent and subagent links.",
-            "copy": "Read-only map of live agents grouped by project and workspace, with parent and subagent links.",
-            "toggleLabel": "Toggle agents map"
+            "title": "Master",
+            "description": "A long-lived Claude Code session you talk to, with the agents it started and anything waiting on you.",
+            "copy": "A long-lived Claude Code session you talk to, with the agents it started and anything waiting on you.",
+            "toggleLabel": "Toggle master"
           }
         },
         "FloatingWorkspacePane": {
@@ -10919,12 +10919,12 @@
               "eaf17a7214": "Agent dashboard"
             },
             "agentsMap": {
-              "title": "Agents map",
-              "description": "Read-only map of live agents grouped by project and workspace, with parent and subagent links.",
+              "title": "Master",
+              "description": "A long-lived Claude Code session you talk to, with the agents it started and anything waiting on you.",
               "agent": "agent",
               "agents": "agents",
-              "map": "map",
-              "graph": "graph",
+              "map": "master",
+              "graph": "claude",
               "lineage": "lineage"
             }
           }
@@ -20085,17 +20085,15 @@
             "subagents": "Subagents",
             "openTerminal": "Open terminal",
             "terminalUnavailable": "Terminal is no longer available",
-            "empty": "No live agents",
             "master": "Master",
-            "expandMaster": "Expand master pane",
-            "collapseMaster": "Collapse master pane",
             "masterHint": "A long-lived Claude Code session in its own folder.",
             "startMaster": "Start master",
             "closeDetail": "Close",
             "railEmpty": "No other agents yet. Ask the master to start one.",
             "needsYou": "Needs you",
             "startedByMaster": "Started by Master",
-            "otherAgents": "Other agents"
+            "otherAgents": "Other agents",
+            "restartMaster": "Restart master"
           }
         }
       }

@@ -1,5 +1,5 @@
 import React from 'react'
-import { BookOpen, CalendarClock, EyeOff, Files, Network, Search, Smartphone } from 'lucide-react'
+import { BookOpen, CalendarClock, Crown, EyeOff, Files, Search, Smartphone } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAppStore } from '@/store/index'
 import { cn } from '@/lib/class-names'
@@ -233,7 +233,7 @@ const SidebarNav = React.memo(function SidebarNav() {
               : 'text-worktree-sidebar-foreground/60 hover:bg-worktree-sidebar-foreground/8'
           )}
         >
-          <Network
+          <Crown
             className={cn(
               'size-4 shrink-0',
               !agentsMapActive && 'text-worktree-sidebar-foreground/30'
@@ -241,7 +241,7 @@ const SidebarNav = React.memo(function SidebarNav() {
             strokeWidth={agentsMapActive ? 2.25 : 1.75}
           />
           <span className="min-w-0 flex-1 truncate">
-            {t('auto.components.sidebar.SidebarNav.agentsMap', 'Agents map')}
+            {t('auto.components.sidebar.SidebarNav.agentsMap', 'Master')}
           </span>
         </button>
       ) : null}

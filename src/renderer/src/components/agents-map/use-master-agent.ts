@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import { useAppStore } from '@/store'
 import { joinPath } from '@/lib/path'
 import { launchAgentInNewTabWithOutcome } from '@/lib/agent-session/launch/new-tab/launch-agent-in-new-tab'
+import { closeTerminalTab } from '@/components/terminal/terminal-tab-actions'
 import { requestBackgroundTerminalWorktreeMount } from '@/components/terminal/background-terminal-worktree-mount'
 import { createNonSecureContextUuid } from '../../../../shared/non-secure-context-uuid'
 import { LOCAL_EXECUTION_HOST_ID } from '../../../../shared/execution-host'
@@ -18,6 +19,8 @@ export type MasterAgent = {
   cwd: string | null
   starting: boolean
   start: () => Promise<void>
+  /** Relaunches `claude` as a new tab, then closes the old one so the master stays the first tab. */
+  restart: () => Promise<void>
 }
 
 /**
@@ -63,43 +66,60 @@ export function useMasterAgent(): MasterAgent {
     }
   }, [worktreeId, tabId])
 
-  const start = useCallback(async (): Promise<void> => {
-    if (!masterDir || starting) {
-      return
-    }
-    setStarting(true)
-    try {
-      const state = useAppStore.getState()
-      let target = workspace
-      if (!target) {
-        // Fails only when the folder already exists, which is fine.
-        await window.api.fs.createDir({ dirPath: masterDir }).catch(() => undefined)
-        const group = await state.createProjectGroup(MASTER_WORKSPACE_NAME, LOCAL_EXECUTION_HOST_ID)
-        if (!group) {
-          return
-        }
-        target = await state.createFolderWorkspace(
-          { projectGroupId: group.id, name: MASTER_WORKSPACE_NAME, folderPath: masterDir },
-          { runtimeEnvironmentId: null }
-        )
-      }
-      if (!target) {
+  const launch = useCallback(
+    async (replaceTabId?: string): Promise<void> => {
+      if (!masterDir || starting) {
         return
       }
-      launchAgentInNewTabWithOutcome({
-        requestId: createNonSecureContextUuid(),
-        agent: 'claude',
-        worktreeId: folderWorkspaceKey(target.id),
-        requestedSurface: 'terminal',
-        activate: false,
-        launchSource: 'unknown'
-      })
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : String(error))
-    } finally {
-      setStarting(false)
-    }
-  }, [masterDir, starting, workspace])
+      setStarting(true)
+      try {
+        const state = useAppStore.getState()
+        let target = workspace
+        if (!target) {
+          // Fails only when the folder already exists, which is fine.
+          await window.api.fs.createDir({ dirPath: masterDir }).catch(() => undefined)
+          const group = await state.createProjectGroup(
+            MASTER_WORKSPACE_NAME,
+            LOCAL_EXECUTION_HOST_ID
+          )
+          if (!group) {
+            return
+          }
+          target = await state.createFolderWorkspace(
+            { projectGroupId: group.id, name: MASTER_WORKSPACE_NAME, folderPath: masterDir },
+            { runtimeEnvironmentId: null }
+          )
+        }
+        if (!target) {
+          return
+        }
+        const outcome = launchAgentInNewTabWithOutcome({
+          requestId: createNonSecureContextUuid(),
+          agent: 'claude',
+          worktreeId: folderWorkspaceKey(target.id),
+          requestedSurface: 'terminal',
+          activate: false,
+          launchSource: 'unknown'
+        })
+        // Why: closing the old tab after the new one exists keeps the master as the workspace's first tab.
+        if (replaceTabId && outcome && 'surface' in outcome) {
+          closeTerminalTab(replaceTabId, {
+            reason: 'user',
+            skipRunningProcessConfirm: true,
+            preserveWorktreeSelection: true
+          })
+        }
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : String(error))
+      } finally {
+        setStarting(false)
+      }
+    },
+    [masterDir, starting, workspace]
+  )
 
-  return { worktreeId, tabId, cwd: masterDir, starting, start }
+  const start = useCallback(() => launch(), [launch])
+  const restart = useCallback(() => launch(tabId ?? undefined), [launch, tabId])
+
+  return { worktreeId, tabId, cwd: masterDir, starting, start, restart }
 }

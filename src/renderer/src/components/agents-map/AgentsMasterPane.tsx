@@ -1,5 +1,5 @@
 import React, { useLayoutEffect, useEffect, useState } from 'react'
-import { Crown } from 'lucide-react'
+import { Crown, RotateCw } from 'lucide-react'
 import { useTranslate } from '@/i18n/use-translate'
 import { Button } from '@/components/ui/button'
 import { AgentStateDot } from '@/components/AgentStateDot'
@@ -62,6 +62,20 @@ export function AgentsMasterPane({ master, state }: Props): React.JSX.Element {
         ) : (
           <div className="flex-1" />
         )}
+        {running ? (
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            disabled={master.starting}
+            aria-label={t(
+              'auto.components.agents.map.AgentsMapPage.restartMaster',
+              'Restart master'
+            )}
+            onClick={() => void master.restart()}
+          >
+            <RotateCw className="size-3.5" />
+          </Button>
+        ) : null}
       </header>
       {running ? (
         <div className="relative min-h-0 flex-1 overflow-hidden bg-editor-surface">

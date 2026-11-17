@@ -65,10 +65,10 @@ export function ExperimentalPane({
 
         {showAgentsMap ? (
           <SearchableSetting
-            title={t('auto.components.settings.ExperimentalPane.agentsMap.title', 'Agents map')}
+            title={t('auto.components.settings.ExperimentalPane.agentsMap.title', 'Master')}
             description={t(
               'auto.components.settings.ExperimentalPane.agentsMap.description',
-              'Read-only map of live agents grouped by project and workspace, with parent and subagent links.'
+              'A long-lived Claude Code session you talk to, with the agents it started and anything waiting on you.'
             )}
             keywords={getExperimentalSearchEntry().agentsMap.keywords}
             className="space-y-3 py-3"
@@ -77,12 +77,12 @@ export function ExperimentalPane({
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0 shrink space-y-0.5">
                 <Label>
-                  {t('auto.components.settings.ExperimentalPane.agentsMap.title', 'Agents map')}
+                  {t('auto.components.settings.ExperimentalPane.agentsMap.title', 'Master')}
                 </Label>
                 <p className="text-xs text-muted-foreground">
                   {t(
                     'auto.components.settings.ExperimentalPane.agentsMap.copy',
-                    'Read-only map of live agents grouped by project and workspace, with parent and subagent links.'
+                    'A long-lived Claude Code session you talk to, with the agents it started and anything waiting on you.'
                   )}
                 </p>
               </div>
@@ -90,7 +90,7 @@ export function ExperimentalPane({
                 checked={settings.experimentalAgentsMap === true}
                 aria-label={t(
                   'auto.components.settings.ExperimentalPane.agentsMap.toggleLabel',
-                  'Toggle agents map'
+                  'Toggle master'
                 )}
                 onCheckedChange={() =>
                   updateSettings({ experimentalAgentsMap: settings.experimentalAgentsMap !== true })

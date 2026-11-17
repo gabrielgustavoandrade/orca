@@ -183,13 +183,10 @@ export const getExperimentalSearchEntry = createLocalizedCatalog(
         ]
       },
       agentsMap: {
-        title: translate(
-          'auto.components.settings.experimental.search.agentsMap.title',
-          'Agents map'
-        ),
+        title: translate('auto.components.settings.experimental.search.agentsMap.title', 'Master'),
         description: translate(
           'auto.components.settings.experimental.search.agentsMap.description',
-          'Read-only map of live agents grouped by project and workspace, with parent and subagent links.'
+          'A long-lived Claude Code session you talk to, with the agents it started and anything waiting on you.'
         ),
         keywords: [
           ...translateSearchKeyword(
@@ -206,11 +203,11 @@ export const getExperimentalSearchEntry = createLocalizedCatalog(
           ),
           ...translateSearchKeyword(
             'auto.components.settings.experimental.search.agentsMap.map',
-            'map'
+            'master'
           ),
           ...translateSearchKeyword(
             'auto.components.settings.experimental.search.agentsMap.graph',
-            'graph'
+            'claude'
           ),
           ...translateSearchKeyword(
             'auto.components.settings.experimental.search.agentsMap.lineage',
