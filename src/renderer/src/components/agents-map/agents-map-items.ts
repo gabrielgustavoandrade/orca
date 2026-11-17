@@ -50,6 +50,10 @@ export function workspaceKeyOf(card: Pick<DashboardCard, 'repoId' | 'worktreeId'
   return `${card.repoId}:${card.worktreeId}`
 }
 
+function isMasterWorktree(input: AgentsMapInput, worktreeId: string): boolean {
+  return input.masterWorktreeId != null && input.masterWorktreeId === worktreeId
+}
+
 export function buildItems(input: AgentsMapInput): TreeItem[] {
   const cards = input.snapshot.cards.filter(
     (card) => !(input.retainedPaneKeys.has(card.paneKey) && !(card.paneKey in input.liveEntries))
@@ -76,6 +80,7 @@ export function buildItems(input: AgentsMapInput): TreeItem[] {
       node: {
         id: card.paneKey,
         kind: 'agent',
+        isMaster: isMasterWorktree(input, card.worktreeId),
         name: cardName(card),
         activity: agentsMapActivity(card, input.liveEntries[card.paneKey]),
         bucket: card.bucket,
@@ -101,6 +106,7 @@ export function buildItems(input: AgentsMapInput): TreeItem[] {
         node: {
           id: `${card.paneKey}/${sub.id}`,
           kind: 'subagent',
+          isMaster: false,
           name: sub.name,
           activity: '',
           bucket: subagentBucket(sub.dotState),
@@ -139,7 +145,12 @@ export function groupByWorkspace(input: AgentsMapInput, items: TreeItem[]): Proj
     }
     let project = projects.get(repoId)
     if (!project) {
-      project = { repoId, label: repoName, workspaces: [] }
+      project = {
+        repoId,
+        label: repoName,
+        isMaster: isMasterWorktree(input, worktreeId),
+        workspaces: []
+      }
       projects.set(repoId, project)
     }
     const bucket: WorkspaceBucket = { key, label: worktreeName, hostLabel, items: [] }
@@ -156,6 +167,7 @@ export function groupByWorkspace(input: AgentsMapInput, items: TreeItem[]): Proj
     workspaces.get(workspaceKeyOf(item.card))?.items.push(item)
   }
   return [...projects.values()]
+    .sort((a, b) => Number(b.isMaster) - Number(a.isMaster))
     .map((p) => ({ ...p, workspaces: p.workspaces.filter((w) => w.items.length > 0) }))
     .filter((p) => p.workspaces.length > 0)
 }

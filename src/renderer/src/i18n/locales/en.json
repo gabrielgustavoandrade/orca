@@ -20085,7 +20085,12 @@
             "subagents": "Subagents",
             "openTerminal": "Open terminal",
             "terminalUnavailable": "Terminal is no longer available",
-            "empty": "No live agents"
+            "empty": "No live agents",
+            "master": "Master",
+            "expandMaster": "Expand master pane",
+            "collapseMaster": "Collapse master pane",
+            "masterHint": "A long-lived Claude Code session in its own folder.",
+            "startMaster": "Start master"
           }
         }
       }

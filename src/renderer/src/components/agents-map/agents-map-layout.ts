@@ -108,7 +108,7 @@ export function buildAgentsMap(input: AgentsMapInput): AgentsMapLayout {
     groups.push(
       {
         id: `project:${project.repoId}`,
-        kind: 'project',
+        kind: project.isMaster ? 'master' : 'project',
         label: project.label,
         x: 0,
         y: cursorY,

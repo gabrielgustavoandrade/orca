@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import { Crown } from 'lucide-react'
 import { useAppStore } from '@/store'
+import { focusTerminalTabSurface } from '@/components/terminal-pane/input/focus/focus-terminal-tab-surface'
 import { cn } from '@/lib/class-names'
 import { useTranslate } from '@/i18n/use-translate'
 import { Button } from '@/components/ui/button'
@@ -12,8 +14,11 @@ import {
   AGENTS_MAP_NODE_HEIGHT,
   AGENTS_MAP_NODE_WIDTH,
   buildAgentsMap,
+  type AgentsMapLayout,
   type AgentsMapNode
 } from './agents-map-layout'
+import { AgentsMasterPane } from './AgentsMasterPane'
+import { useMasterAgent } from './use-master-agent'
 import { agentTypeToIconAgent } from '../../../../shared/agent-status/presentation/agent-type-icon-agent'
 
 const WRAP_WIDTH = 1200
@@ -120,26 +125,65 @@ function AgentsMapBody(): React.JSX.Element {
   const liveEntries = useAppStore((s) => s.agentStatusByPaneKey)
   const retained = useAppStore((s) => s.retainedAgentsByPaneKey)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [masterCollapsed, setMasterCollapsed] = useState(false)
+  const master = useMasterAgent()
   const map = useMemo(
     () =>
       buildAgentsMap({
         snapshot,
         liveEntries,
         retainedPaneKeys: new Set(Object.keys(retained)),
+        masterWorktreeId: master.worktreeId,
         wrapWidth: WRAP_WIDTH
       }),
-    [snapshot, liveEntries, retained]
+    [snapshot, liveEntries, retained, master.worktreeId]
   )
   const selected = map.nodes.find((node) => node.id === selectedId) ?? null
+  const masterNode = map.nodes.find((node) => node.isMaster) ?? null
 
-  if (map.nodes.length === 0) {
-    return (
-      <div className="flex min-h-0 flex-1 items-center justify-center text-sm text-muted-foreground">
-        {t('auto.components.agents.map.AgentsMapPage.empty', 'No live agents')}
-      </div>
-    )
+  const selectNode = (node: AgentsMapNode): void => {
+    setSelectedId(node.id)
+    if (node.isMaster && master.tabId) {
+      setMasterCollapsed(false)
+      focusTerminalTabSurface(master.tabId)
+    }
   }
 
+  return (
+    <>
+      {map.nodes.length === 0 ? (
+        <div className="flex min-h-0 flex-1 items-center justify-center text-sm text-muted-foreground">
+          {t('auto.components.agents.map.AgentsMapPage.empty', 'No live agents')}
+        </div>
+      ) : (
+        <AgentsMapGraph
+          map={map}
+          selected={selected}
+          selectedId={selectedId}
+          onSelect={selectNode}
+        />
+      )}
+      <AgentsMasterPane
+        master={master}
+        state={masterNode?.displayState ?? null}
+        collapsed={masterCollapsed}
+        onToggleCollapsed={() => setMasterCollapsed((value) => !value)}
+      />
+    </>
+  )
+}
+
+function AgentsMapGraph({
+  map,
+  selected,
+  selectedId,
+  onSelect
+}: {
+  map: AgentsMapLayout
+  selected: AgentsMapNode | null
+  selectedId: string | null
+  onSelect: (node: AgentsMapNode) => void
+}): React.JSX.Element {
   return (
     <div className="flex min-h-0 flex-1">
       <div className="min-w-0 flex-1 overflow-auto p-4 scrollbar-sleek">
@@ -149,10 +193,13 @@ function AgentsMapBody(): React.JSX.Element {
               key={group.id}
               className={cn(
                 'absolute rounded-lg border border-border px-3 py-1.5 text-2xs text-muted-foreground',
-                group.kind === 'project' && 'font-semibold'
+                group.kind !== 'workspace' && 'font-semibold'
               )}
               style={{ left: group.x, top: group.y, width: group.width, height: group.height }}
             >
+              {group.kind === 'master' ? (
+                <Crown className="mr-1 inline size-3 align-[-2px]" aria-hidden />
+              ) : null}
               {group.label}
             </div>
           ))}
@@ -180,7 +227,7 @@ function AgentsMapBody(): React.JSX.Element {
                 key={node.id}
                 type="button"
                 data-current={current ? 'true' : undefined}
-                onClick={() => setSelectedId(node.id)}
+                onClick={() => onSelect(node)}
                 className={cn(
                   'absolute flex flex-col justify-center gap-0.5 rounded-md border border-border bg-card px-2.5 text-left transition-colors hover:bg-accent',
                   current && 'bg-accent ring-1 ring-ring'
@@ -199,6 +246,9 @@ function AgentsMapBody(): React.JSX.Element {
                     className="shrink-0"
                   />
                   <span className="min-w-0 flex-1 truncate">{node.name}</span>
+                  {node.isMaster ? (
+                    <Crown className="size-3 shrink-0 text-muted-foreground" aria-hidden />
+                  ) : null}
                   <AgentStateDot state={node.displayState} />
                 </span>
                 {node.activity ? (

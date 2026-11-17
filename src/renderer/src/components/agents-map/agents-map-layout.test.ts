@@ -73,6 +73,26 @@ describe('buildAgentsMap', () => {
     ])
   })
 
+  it('marks the master agent and puts its group first', () => {
+    const map = build(
+      [
+        card({ paneKey: 'a', repoId: 'r1', worktreeId: 'w1' }),
+        card({ paneKey: 'm', repoId: 'folder-workspace:g', worktreeId: 'folder:m' })
+      ],
+      { masterWorktreeId: 'folder:m' }
+    )
+    expect(map.groups.map((g) => [g.id, g.kind])).toEqual([
+      ['project:folder-workspace:g', 'master'],
+      ['workspace:folder-workspace:g:folder:m', 'workspace'],
+      ['project:r1', 'project'],
+      ['workspace:r1:w1', 'workspace']
+    ])
+    expect(map.nodes.map((n) => [n.id, n.isMaster])).toEqual([
+      ['m', true],
+      ['a', false]
+    ])
+  })
+
   it('drops retained cards that are no longer live but keeps live and title-derived ones', () => {
     const cards = [card({ paneKey: 'dead' }), card({ paneKey: 'live' }), card({ paneKey: 'title' })]
     const gone = build(cards, {

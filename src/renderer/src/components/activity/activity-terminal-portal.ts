@@ -6,8 +6,8 @@ export type ActivityTerminalPortalTarget = {
   target: HTMLElement
   worktreeId: string
   tabId: string
-  // Carry the durable leaf paneKey; TerminalPane resolves its current numeric handle immediately before isolation.
-  paneKey: string
+  // Carry the durable leaf paneKey; TerminalPane resolves its current numeric handle immediately before isolation. Null shows the whole tab.
+  paneKey: string | null
   forceUnavailable?: boolean
   active: boolean
 }

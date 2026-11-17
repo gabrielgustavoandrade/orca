@@ -15,12 +15,14 @@ export type AgentsMapInput = {
   snapshot: Pick<DashboardSnapshot, 'cards' | 'workspaces'>
   liveEntries: Readonly<Record<string, Pick<AgentStatusEntry, 'toolName' | 'toolInput'>>>
   retainedPaneKeys: ReadonlySet<string>
+  masterWorktreeId?: string | null
   wrapWidth: number
 }
 
 export type AgentsMapNode = {
   id: string
   kind: 'agent' | 'subagent'
+  isMaster: boolean
   name: string
   activity: string
   bucket: DashboardBucket
@@ -46,7 +48,7 @@ export type AgentsMapEdge = {
 
 export type AgentsMapGroup = {
   id: string
-  kind: 'project' | 'workspace'
+  kind: 'project' | 'workspace' | 'master'
   label: string
   hostLabel?: string
   x: number
@@ -73,4 +75,9 @@ export type TreeItem = {
 }
 
 export type WorkspaceBucket = { key: string; label: string; hostLabel?: string; items: TreeItem[] }
-export type ProjectBucket = { repoId: string; label: string; workspaces: WorkspaceBucket[] }
+export type ProjectBucket = {
+  repoId: string
+  label: string
+  isMaster: boolean
+  workspaces: WorkspaceBucket[]
+}
