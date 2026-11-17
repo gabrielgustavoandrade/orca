@@ -4,6 +4,7 @@ import { useAppStore } from '@/store'
 import { joinPath } from '@/lib/path'
 import { launchAgentInNewTabWithOutcome } from '@/lib/agent-session/launch/new-tab/launch-agent-in-new-tab'
 import { requestBackgroundTerminalWorktreeMount } from '@/components/terminal/background-terminal-worktree-mount'
+import { createNonSecureContextUuid } from '../../../../shared/non-secure-context-uuid'
 import { LOCAL_EXECUTION_HOST_ID } from '../../../../shared/execution-host'
 import { normalizeRuntimePathForComparison } from '../../../../shared/cross-platform-path'
 import { folderWorkspaceKey } from '../../../../shared/workspace-scope'
@@ -85,6 +86,7 @@ export function useMasterAgent(): MasterAgent {
         return
       }
       launchAgentInNewTabWithOutcome({
+        requestId: createNonSecureContextUuid(),
         agent: 'claude',
         worktreeId: folderWorkspaceKey(target.id),
         requestedSurface: 'terminal',
