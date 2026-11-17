@@ -9,7 +9,7 @@ import { revealDashboardAgent } from '../dashboard/reveal-dashboard-agent'
 import { agentTypeToIconAgent } from '../../../../shared/agent-status/presentation/agent-type-icon-agent'
 import { AgentsMapDetail } from './AgentsMapDetail'
 import type { MasterRailGroups, NeedsYouItem, RailTreeNode } from './master-rail'
-import type { AgentsMapNode, TreeItem } from './agents-map-types'
+import type { AgentsMapNode } from './agents-map-types'
 
 type SelectProps = {
   selectedId: string | null
@@ -107,9 +107,7 @@ function NeedsYouCard({ entry }: { entry: NeedsYouItem }): React.JSX.Element {
   const { node } = entry.item
   return (
     <div className="space-y-1 rounded-md border border-agent-question/40 bg-[color-mix(in_srgb,var(--agent-question)_5%,var(--background))] p-2">
-      <div className="flex min-w-0 items-center gap-1.5 text-xs font-medium">
-        <span className="min-w-0 flex-1 truncate">{node.name}</span>
-      </div>
+      <div className="truncate text-xs font-medium">{node.name}</div>
       <p className="break-words text-xs">{node.activity}</p>
       <div className="flex items-center gap-1.5">
         {entry.startedByMaster ? (
@@ -189,7 +187,7 @@ export function MasterRail({
             <SectionTitle>
               {t('auto.components.agents.map.AgentsMapPage.otherAgents', 'Other agents')}
             </SectionTitle>
-            {groups.other.map((item: TreeItem) => (
+            {groups.other.map((item) => (
               <RailRow
                 key={item.node.id}
                 node={item.node}
