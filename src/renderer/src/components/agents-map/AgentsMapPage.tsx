@@ -19,9 +19,9 @@ function MasterBody(): React.JSX.Element {
         snapshot,
         liveEntries,
         retainedPaneKeys: new Set(Object.keys(retained)),
-        masterWorktreeId: master.worktreeId
+        masterTabId: master.tabId
       }),
-    [snapshot, liveEntries, retained, master.worktreeId]
+    [snapshot, liveEntries, retained, master.tabId]
   )
   const selected = groups.listed.find((item) => item.node.id === selectedId)?.node ?? null
 

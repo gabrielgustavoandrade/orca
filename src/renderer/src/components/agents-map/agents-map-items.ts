@@ -53,7 +53,7 @@ export function buildItems(input: AgentsMapInput): TreeItem[] {
         card.parentPaneKey && alive.has(card.parentPaneKey) ? card.parentPaneKey : undefined,
       node: {
         id: card.paneKey,
-        isMaster: input.masterWorktreeId != null && input.masterWorktreeId === card.worktreeId,
+        isMaster: input.masterTabId != null && card.tabId === input.masterTabId,
         name: cardName(card),
         activity: agentsMapActivity(card, input.liveEntries[card.paneKey]),
         bucket: card.bucket,

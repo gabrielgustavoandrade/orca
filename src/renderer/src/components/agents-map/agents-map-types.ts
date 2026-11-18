@@ -12,7 +12,7 @@ export type AgentsMapInput = {
   snapshot: Pick<DashboardSnapshot, 'cards'>
   liveEntries: Readonly<Record<string, Pick<AgentStatusEntry, 'toolName' | 'toolInput'>>>
   retainedPaneKeys: ReadonlySet<string>
-  masterWorktreeId?: string | null
+  masterTabId?: string | null
 }
 
 export type AgentsMapNode = {

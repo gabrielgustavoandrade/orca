@@ -28,13 +28,13 @@ const rail = (cards: DashboardCard[]): ReturnType<typeof buildMasterRail> =>
     snapshot: { cards },
     liveEntries: {},
     retainedPaneKeys: new Set(),
-    masterWorktreeId: 'master-wt'
+    masterTabId: 'master-tab'
   })
 
 describe('buildMasterRail', () => {
   it('splits agents into started-by-master tree, other agents, and omits the master', () => {
     const result = rail([
-      card({ paneKey: 'm', worktreeId: 'master-wt' }),
+      card({ paneKey: 'm', tabId: 'master-tab' }),
       card({ paneKey: 'w2', startedAt: 3, parentPaneKey: 'm' }),
       card({ paneKey: 'w1', startedAt: 2, parentPaneKey: 'm' }),
       card({ paneKey: 'grandchild', startedAt: 4, parentPaneKey: 'w1' }),
@@ -63,7 +63,7 @@ describe('buildMasterRail', () => {
 
   it('lists only attention cards with an ask, newest first, flagging master-started ones', () => {
     const result = rail([
-      card({ paneKey: 'm', worktreeId: 'master-wt' }),
+      card({ paneKey: 'm', tabId: 'master-tab' }),
       card({
         paneKey: 'old',
         bucket: 'attention',
@@ -79,6 +79,16 @@ describe('buildMasterRail', () => {
       ['new', false],
       ['old', true]
     ])
+  })
+
+  it('lists a worker in the master worktree under started, not dropped as a master', () => {
+    const result = rail([
+      card({ paneKey: 'm', tabId: 'master-tab' }),
+      card({ paneKey: 'worker', tabId: 'worker-tab', parentPaneKey: 'm' }),
+      card({ paneKey: 'loner', tabId: 'other-tab' })
+    ])
+    expect(result.started.map((root) => root.item.node.id)).toEqual(['worker'])
+    expect(result.other.map((item) => item.node.id)).toEqual(['loner'])
   })
 
   it('has no master and no tree before the master exists', () => {
